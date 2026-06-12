@@ -1,0 +1,23 @@
+{
+  "projectName": "something-great",
+  "mode": "file-router",
+  "typescript": true,
+  "packageManager": "bun",
+  "includeExamples": false,
+  "tailwind": true,
+  "addOnOptions": {},
+  "envVarValues": {},
+  "git": true,
+  "install": true,
+  "routerOnly": false,
+  "version": 1,
+  "framework": "react",
+  "chosenAddOns": [
+    "eslint",
+    "railway",
+    "shadcn",
+    "table",
+    "posthog",
+    "tanstack-query"
+  ]
+}
