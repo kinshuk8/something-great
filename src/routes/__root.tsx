@@ -10,6 +10,9 @@ import PostHogProvider from '../integrations/posthog/provider'
 
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 
+import { ConvexAuthProvider } from '@convex-dev/auth/react'
+import { convex } from '../lib/convex'
+
 import appCss from '../styles.css?url'
 
 import type { QueryClient } from '@tanstack/react-query'
@@ -29,10 +32,20 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'TanStack Start Starter',
+        title: 'Something Great',
       },
     ],
     links: [
+      {
+        rel: 'icon',
+        type: 'image/svg+xml',
+        href: '/favicon.svg',
+      },
+      {
+        rel: 'icon',
+        type: 'image/x-icon',
+        href: '/favicon.ico',
+      },
       {
         rel: 'stylesheet',
         href: appCss,
@@ -49,21 +62,23 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <PostHogProvider>
-          {children}
-          <TanStackDevtools
-            config={{
-              position: 'bottom-right',
-            }}
-            plugins={[
-              {
-                name: 'Tanstack Router',
-                render: <TanStackRouterDevtoolsPanel />,
-              },
-              TanStackQueryDevtools,
-            ]}
-          />
-        </PostHogProvider>
+        <ConvexAuthProvider client={convex}>
+          <PostHogProvider>
+            {children}
+            <TanStackDevtools
+              config={{
+                position: 'bottom-right',
+              }}
+              plugins={[
+                {
+                  name: 'Tanstack Router',
+                  render: <TanStackRouterDevtoolsPanel />,
+                },
+                TanStackQueryDevtools,
+              ]}
+            />
+          </PostHogProvider>
+        </ConvexAuthProvider>
         <Scripts />
       </body>
     </html>
