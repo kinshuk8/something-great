@@ -24,7 +24,8 @@ export default defineSchema({
 
     messages: defineTable({
         userId: v.id('users'),
-        body: v.string(),
+        body: v.optional(v.string()),
+        imageUrl: v.optional(v.string()),
         createdAt: v.number(),
     })
         .index('by_createdAt', ['createdAt']),
