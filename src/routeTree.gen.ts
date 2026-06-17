@@ -16,7 +16,6 @@ import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiUploadthingRouteImport } from './routes/api/uploadthing'
-import { Route as ApiDebugEnvRouteImport } from './routes/api/debug-env'
 
 const WaitlistRoute = WaitlistRouteImport.update({
   id: '/waitlist',
@@ -53,11 +52,6 @@ const ApiUploadthingRoute = ApiUploadthingRouteImport.update({
   path: '/api/uploadthing',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDebugEnvRoute = ApiDebugEnvRouteImport.update({
-  id: '/api/debug-env',
-  path: '/api/debug-env',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -66,7 +60,6 @@ export interface FileRoutesByFullPath {
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
   '/waitlist': typeof WaitlistRoute
-  '/api/debug-env': typeof ApiDebugEnvRoute
   '/api/uploadthing': typeof ApiUploadthingRoute
 }
 export interface FileRoutesByTo {
@@ -76,7 +69,6 @@ export interface FileRoutesByTo {
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
   '/waitlist': typeof WaitlistRoute
-  '/api/debug-env': typeof ApiDebugEnvRoute
   '/api/uploadthing': typeof ApiUploadthingRoute
 }
 export interface FileRoutesById {
@@ -87,7 +79,6 @@ export interface FileRoutesById {
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
   '/waitlist': typeof WaitlistRoute
-  '/api/debug-env': typeof ApiDebugEnvRoute
   '/api/uploadthing': typeof ApiUploadthingRoute
 }
 export interface FileRouteTypes {
@@ -99,7 +90,6 @@ export interface FileRouteTypes {
     | '/signin'
     | '/signup'
     | '/waitlist'
-    | '/api/debug-env'
     | '/api/uploadthing'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -109,7 +99,6 @@ export interface FileRouteTypes {
     | '/signin'
     | '/signup'
     | '/waitlist'
-    | '/api/debug-env'
     | '/api/uploadthing'
   id:
     | '__root__'
@@ -119,7 +108,6 @@ export interface FileRouteTypes {
     | '/signin'
     | '/signup'
     | '/waitlist'
-    | '/api/debug-env'
     | '/api/uploadthing'
   fileRoutesById: FileRoutesById
 }
@@ -130,7 +118,6 @@ export interface RootRouteChildren {
   SigninRoute: typeof SigninRoute
   SignupRoute: typeof SignupRoute
   WaitlistRoute: typeof WaitlistRoute
-  ApiDebugEnvRoute: typeof ApiDebugEnvRoute
   ApiUploadthingRoute: typeof ApiUploadthingRoute
 }
 
@@ -185,13 +172,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUploadthingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/debug-env': {
-      id: '/api/debug-env'
-      path: '/api/debug-env'
-      fullPath: '/api/debug-env'
-      preLoaderRoute: typeof ApiDebugEnvRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -202,7 +182,6 @@ const rootRouteChildren: RootRouteChildren = {
   SigninRoute: SigninRoute,
   SignupRoute: SignupRoute,
   WaitlistRoute: WaitlistRoute,
-  ApiDebugEnvRoute: ApiDebugEnvRoute,
   ApiUploadthingRoute: ApiUploadthingRoute,
 }
 export const routeTree = rootRouteImport
