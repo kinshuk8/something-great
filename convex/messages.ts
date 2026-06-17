@@ -94,3 +94,41 @@ export const getAndCleanOldMessages = internalMutation({
     return keysToDelete;
   },
 });
+
+export const deleteImageReference = internalMutation({
+  args: {
+    messageId: v.id('messages'),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error('Not authenticated');
+    }
+
+    const message = await ctx.db.get(args.messageId);
+    if (!message) {
+      throw new Error('Message not found');
+    }
+
+    if (message.userId !== userId) {
+      throw new Error('Not authorized to delete this image');
+    }
+
+    if (!message.imageUrl) {
+      return null;
+    }
+
+    const urlParts = message.imageUrl.split("/");
+    const key = urlParts[urlParts.length - 1];
+
+    if (message.body) {
+      // Keep the text message but remove the image URL reference
+      await ctx.db.patch(message._id, { imageUrl: undefined });
+    } else {
+      // If there is no text body, delete the entire message
+      await ctx.db.delete(message._id);
+    }
+
+    return key;
+  },
+});

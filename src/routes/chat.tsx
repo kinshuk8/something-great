@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
-import { useQuery, useMutation } from 'convex/react'
+import { useQuery, useMutation, useAction } from 'convex/react'
 import { useAuthActions, useConvexAuth } from '@convex-dev/auth/react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
@@ -14,6 +14,30 @@ import { Progress } from '#/components/ui/progress'
 export const Route = createFileRoute('/chat')({
   component: RouteComponent,
 })
+
+const playPingSound = () => {
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const oscillator = audioCtx.createOscillator()
+    const gainNode = audioCtx.createGain()
+    
+    oscillator.connect(gainNode)
+    gainNode.connect(audioCtx.destination)
+    
+    // Soft, high-pitched modern bubble pop / ping sound
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(650, audioCtx.currentTime)
+    oscillator.frequency.exponentialRampToValueAtTime(1300, audioCtx.currentTime + 0.12)
+    
+    gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15)
+    
+    oscillator.start(audioCtx.currentTime)
+    oscillator.stop(audioCtx.currentTime + 0.15)
+  } catch (e) {
+    console.warn('Web Audio API not supported or blocked by autoplay:', e)
+  }
+}
 
 function ChatLoadingSkeleton() {
   return (
@@ -181,6 +205,48 @@ function ProfileModal({ isOpen, onClose, currentUser }: ProfileModalProps) {
   )
 }
 
+interface ImageModalProps {
+  imageUrl: string | null
+  onClose: () => void
+}
+
+function ImageModal({ imageUrl, onClose }: ImageModalProps) {
+  if (!imageUrl) return null
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-background/85 backdrop-blur-md z-50 animate-in fade-in duration-200"
+        onClick={onClose}
+      />
+      
+      {/* Image Container */}
+      <div 
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] max-w-[90vw] max-h-[85vh] flex flex-col items-center justify-center animate-in zoom-in-95 fade-in duration-200"
+        onClick={onClose}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 text-white bg-black/60 hover:bg-black/80 rounded-full p-2.5 transition-colors cursor-pointer shadow-lg hover:scale-105 z-10"
+          title="Close"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <img
+          src={imageUrl}
+          alt="Expanded chat preview"
+          className="max-w-full max-h-[85vh] rounded-xl object-contain border border-border/40 shadow-2xl select-none"
+        />
+      </div>
+    </>
+  )
+}
+
 function RouteComponent() {
   const { isLoading, isAuthenticated } = useConvexAuth()
   const { signOut } = useAuthActions()
@@ -191,16 +257,65 @@ function RouteComponent() {
   const [uploadProgress, setUploadProgress] = useState<number>(0)
   const [showDropdown, setShowDropdown] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [deletingMessageIds, setDeletingMessageIds] = useState<Set<string>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const prevMessageCountRef = useRef<number | null>(null)
 
   const currentUser = useQuery(api.users.getCurrentUser)
   const messages = useQuery(api.messages.getMessages)
   const sendMessage = useMutation(api.messages.sendMessage)
+  const deleteImageAction = useAction(api.cleanup.deleteImage)
+
+  useEffect(() => {
+    if (messages !== undefined) {
+      const isInitial = prevMessageCountRef.current === null
+      
+      // Scroll to bottom immediately on initial load, and smoothly on updates
+      if (messages.length > 0) {
+        messagesEndRef.current?.scrollIntoView({ 
+          behavior: isInitial ? 'auto' : 'smooth' 
+        })
+      }
+      
+      // Play ping sound if a new message was added after initial load
+      if (!isInitial && messages.length > prevMessageCountRef.current!) {
+        playPingSound()
+      }
+      
+      prevMessageCountRef.current = messages.length
+    }
+  }, [messages])
+
+  const handleDeleteImage = async (messageId: any) => {
+    if (!confirm('Are you sure you want to delete this image forever? This cannot be undone.')) return
+    
+    // Optimistically add to deleting list
+    setDeletingMessageIds((prev) => {
+      const next = new Set(prev)
+      next.add(messageId)
+      return next
+    })
+
+    try {
+      await deleteImageAction({ messageId })
+    } catch (err) {
+      // Rollback on error
+      setDeletingMessageIds((prev) => {
+        const next = new Set(prev)
+        next.delete(messageId)
+        return next
+      })
+      console.error(err)
+      alert(err instanceof Error ? err.message : 'Failed to delete image')
+    }
+  }
 
   const { startUpload, isUploading } = useUploadThing('imageUploader', {
     onClientUploadComplete: (res) => {
       if (res && res[0]) {
-        setImageUrl(res[0].url)
+        setImageUrl(res[0].ufsUrl || res[0].url)
       }
     },
     onUploadError: (err) => {
@@ -290,7 +405,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="h-[100dvh] bg-background text-foreground flex flex-col overflow-hidden">
       {/* Header */}
       <header className="border-b border-border px-6 py-4 relative z-20">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
@@ -356,8 +471,22 @@ function RouteComponent() {
           ) : (
             messages.map((msg) => {
               const isMe = currentUser && msg.userId === currentUser._id
+              const isDeleting = deletingMessageIds.has(msg._id)
+              const isDeletingMessage = isDeleting && !msg.body
+              const isDeletingImage = isDeleting
+
               return (
-                <div key={msg._id} className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
+                <div 
+                  key={msg._id} 
+                  className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''} ${
+                    isDeletingMessage 
+                      ? 'opacity-0 scale-95 max-h-0 py-0 my-0 overflow-hidden pointer-events-none transition-all duration-700 ease-in-out' 
+                      : 'animate-in fade-in slide-in-from-bottom-2 duration-300 transition-all duration-500'
+                  }`}
+                  style={{
+                    maxHeight: isDeletingMessage ? '0px' : '500px',
+                  }}
+                >
                   <img
                     src={msg.user ? getAvatar(msg.user.avatarSeed) : getAvatar('default')}
                     alt="avatar"
@@ -377,12 +506,41 @@ function RouteComponent() {
                       </p>
                     )}
                     {msg.imageUrl && (
-                      <div className="mt-1 max-w-sm rounded-lg overflow-hidden border border-border bg-card">
-                        <img
-                          src={msg.imageUrl}
-                          alt="Uploaded chat image"
-                          className="w-full h-auto max-h-60 object-cover"
-                        />
+                      <div 
+                        className={`relative group mt-1 max-w-sm rounded-lg overflow-hidden border border-border bg-card transition-all duration-500 ease-in-out ${
+                          isDeletingImage 
+                            ? 'opacity-0 scale-95 max-h-0 my-0 border-0 pointer-events-none' 
+                            : ''
+                        }`}
+                        style={{
+                          maxHeight: isDeletingImage ? '0px' : '300px',
+                        }}
+                      >
+                        <div 
+                          onClick={() => setSelectedImage(msg.imageUrl)}
+                          className="cursor-zoom-in hover:opacity-95 transition-opacity"
+                        >
+                          <img
+                            src={msg.imageUrl}
+                            alt="Uploaded chat image"
+                            className="w-full h-auto max-h-60 object-cover"
+                          />
+                        </div>
+                        {isMe && !isDeletingImage && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteImage(msg._id)}
+                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-black/60 hover:bg-destructive text-white hover:text-white rounded-lg p-1.5 transition-all duration-200 cursor-pointer shadow-md"
+                            title="Delete image forever"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                              <line x1="10" y1="11" x2="10" y2="17"/>
+                              <line x1="14" y1="11" x2="14" y2="17"/>
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -390,6 +548,7 @@ function RouteComponent() {
               )
             })
           )}
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
@@ -492,6 +651,10 @@ function RouteComponent() {
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         currentUser={currentUser}
+      />
+      <ImageModal
+        imageUrl={selectedImage}
+        onClose={() => setSelectedImage(null)}
       />
     </div>
   )
