@@ -43,7 +43,11 @@ function RouteComponent() {
       })
       router.navigate({ to: '/chat' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign in failed. Please try again.')
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Sign in failed. Please try again.',
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -55,12 +59,25 @@ function RouteComponent() {
         {/* Header */}
         <div className="flex flex-col items-center gap-2">
           <div className="w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-muted-foreground"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold font-mono tracking-tight">Welcome back</h1>
+          <h1 className="text-xl font-semibold font-mono tracking-tight">
+            Welcome back
+          </h1>
         </div>
 
         <p className="text-sm text-muted-foreground font-mono text-center -mt-2">
@@ -70,7 +87,9 @@ function RouteComponent() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground font-mono ml-1">Email</label>
+            <label className="text-xs text-muted-foreground font-mono ml-1">
+              Email
+            </label>
             <Input
               type="email"
               placeholder="you@example.com"
@@ -81,7 +100,9 @@ function RouteComponent() {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground font-mono ml-1">Password</label>
+            <label className="text-xs text-muted-foreground font-mono ml-1">
+              Password
+            </label>
             <Input
               type="password"
               placeholder="Enter your password"
@@ -94,7 +115,9 @@ function RouteComponent() {
 
           {error && (
             <div className="rounded-xl bg-muted border border-border px-4 py-2.5">
-              <p className="text-foreground text-sm font-mono text-center">{error}</p>
+              <p className="text-foreground text-sm font-mono text-center">
+                {error}
+              </p>
             </div>
           )}
 
@@ -105,9 +128,25 @@ function RouteComponent() {
           >
             {isSubmitting ? (
               <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                <svg
+                  className="animate-spin h-4 w-4"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
                 </svg>
                 Signing In...
               </span>
@@ -119,9 +158,14 @@ function RouteComponent() {
 
         {/* Footer */}
         <div className="flex items-center gap-1.5 pt-1">
-          <span className="text-sm text-muted-foreground font-mono">Don't have an account?</span>
+          <span className="text-sm text-muted-foreground font-mono">
+            Don't have an account?
+          </span>
           <Link to="/signup">
-            <Button variant="link" className="text-foreground hover:text-muted-foreground font-mono text-sm transition-colors p-0 h-auto">
+            <Button
+              variant="link"
+              className="text-foreground hover:text-muted-foreground font-mono text-sm transition-colors p-0 h-auto"
+            >
               Sign Up
             </Button>
           </Link>

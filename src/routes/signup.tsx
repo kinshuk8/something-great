@@ -58,7 +58,11 @@ function RouteComponent() {
       })
       router.navigate({ to: '/chat' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign up failed. Please try again.')
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Sign up failed. Please try again.',
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -70,14 +74,27 @@ function RouteComponent() {
         {/* Header */}
         <div className="flex flex-col items-center gap-2">
           <div className="w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <line x1="19" y1="8" x2="19" y2="14"/>
-              <line x1="22" y1="11" x2="16" y2="11"/>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-muted-foreground"
+            >
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <line x1="19" y1="8" x2="19" y2="14" />
+              <line x1="22" y1="11" x2="16" y2="11" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold font-mono tracking-tight">Create your account</h1>
+          <h1 className="text-xl font-semibold font-mono tracking-tight">
+            Create your account
+          </h1>
         </div>
 
         <p className="text-sm text-muted-foreground font-mono text-center -mt-2">
@@ -87,7 +104,9 @@ function RouteComponent() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground font-mono ml-1">Display Name</label>
+            <label className="text-xs text-muted-foreground font-mono ml-1">
+              Display Name
+            </label>
             <Input
               type="text"
               placeholder="How others see you"
@@ -97,7 +116,9 @@ function RouteComponent() {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground font-mono ml-1">Email</label>
+            <label className="text-xs text-muted-foreground font-mono ml-1">
+              Email
+            </label>
             <Input
               type="email"
               placeholder="you@example.com"
@@ -108,7 +129,9 @@ function RouteComponent() {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground font-mono ml-1">Password</label>
+            <label className="text-xs text-muted-foreground font-mono ml-1">
+              Password
+            </label>
             <Input
               type="password"
               placeholder="At least 8 characters"
@@ -119,7 +142,9 @@ function RouteComponent() {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground font-mono ml-1">Confirm Password</label>
+            <label className="text-xs text-muted-foreground font-mono ml-1">
+              Confirm Password
+            </label>
             <Input
               type="password"
               placeholder="Re-enter your password"
@@ -132,7 +157,9 @@ function RouteComponent() {
 
           {error && (
             <div className="rounded-xl bg-muted border border-border px-4 py-2.5">
-              <p className="text-foreground text-sm font-mono text-center">{error}</p>
+              <p className="text-foreground text-sm font-mono text-center">
+                {error}
+              </p>
             </div>
           )}
 
@@ -143,9 +170,25 @@ function RouteComponent() {
           >
             {isSubmitting ? (
               <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                <svg
+                  className="animate-spin h-4 w-4"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
                 </svg>
                 Creating Account...
               </span>
@@ -157,9 +200,14 @@ function RouteComponent() {
 
         {/* Footer */}
         <div className="flex items-center gap-1.5 pt-1">
-          <span className="text-sm text-muted-foreground font-mono">Already have an account?</span>
+          <span className="text-sm text-muted-foreground font-mono">
+            Already have an account?
+          </span>
           <Link to="/signin">
-            <Button variant="link" className="text-foreground hover:text-muted-foreground font-mono text-sm transition-colors p-0 h-auto">
+            <Button
+              variant="link"
+              className="text-foreground hover:text-muted-foreground font-mono text-sm transition-colors p-0 h-auto"
+            >
               Sign In
             </Button>
           </Link>

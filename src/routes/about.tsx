@@ -9,7 +9,9 @@ function About() {
         <h1 className="text-4xl font-bold text-center">About Us</h1>
       </div>
       <div className="p-8">
-        <p className="text-lg text-center">Learn more about our company and what we do.</p>
+        <p className="text-lg text-center">
+          Learn more about our company and what we do.
+        </p>
       </div>
     </>
   )

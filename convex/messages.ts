@@ -1,134 +1,193 @@
-import { mutation, query, internalMutation } from './_generated/server';
-import { v } from 'convex/values';
-import { getAuthUserId } from '@convex-dev/auth/server';
+import { mutation, query, internalMutation } from './_generated/server'
+import { v } from 'convex/values'
+import { getAuthUserId } from '@convex-dev/auth/server'
 
 export const sendMessage = mutation({
-    args: {
-        body: v.optional(v.string()),
-        imageUrl: v.optional(v.string()),
-    },
-    handler: async (ctx, args) => {
-        const userId = await getAuthUserId(ctx);
-        if (userId === null) {
-            throw new Error('Not authenticated');
-        }
+  args: {
+    body: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    chatroomId: v.optional(v.union(v.id('chatrooms'), v.null())),
+    replyToId: v.optional(v.id('messages')),
+    mentions: v.optional(v.array(v.id('users'))),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (userId === null) {
+      throw new Error('Not authenticated')
+    }
 
-        if (!args.body && !args.imageUrl) {
-            throw new Error('Message body or image is required');
-        }
+    if (!args.body && !args.imageUrl) {
+      throw new Error('Message body or image is required')
+    }
 
-        await ctx.db.insert('messages', {
-            body: args.body,
-            imageUrl: args.imageUrl,
-            userId,
-            createdAt: Date.now(),
-        });
-    },
-});
+    const chatroomId = args.chatroomId ?? null
+
+    const messageId = await ctx.db.insert('messages', {
+      body: args.body,
+      imageUrl: args.imageUrl,
+      userId,
+      createdAt: Date.now(),
+      chatroomId,
+      replyToId: args.replyToId,
+      mentions: args.mentions,
+    })
+
+    // Update chatroom lastMessageAt timestamp for sorting
+    if (chatroomId !== null) {
+      await ctx.db.patch(chatroomId, {
+        lastMessageAt: Date.now(),
+      })
+    }
+
+    return messageId
+  },
+})
 
 export const getMessages = query({
-    args: {},
-    handler: async (ctx) => {
-        const messages = await ctx.db
-            .query('messages')
-            .order('desc')
-            .take(100);
+  args: {
+    chatroomId: v.optional(v.union(v.id('chatrooms'), v.null())),
+  },
+  handler: async (ctx, args) => {
+    const chatroomId = args.chatroomId ?? null
 
-        const reversed = messages.reverse();
+    // Perform index scan to only read messages from target room
+    const messages = await ctx.db
+      .query('messages')
+      .withIndex('by_chatroomId_and_createdAt', (q) =>
+        q.eq('chatroomId', chatroomId),
+      )
+      .order('desc')
+      .take(100)
 
-        return Promise.all(
-            reversed.map(async (message) => ({
-                ...message,
-                user: await ctx.db.get(message.userId),
-            }))
-        );
-    },
-});
+    const reversed = messages.reverse()
+
+    return Promise.all(
+      reversed.map(async (message) => {
+        const user = await ctx.db.get(message.userId)
+
+        let repliedTo = null
+        if (message.replyToId) {
+          const replyMsg = await ctx.db.get(message.replyToId)
+          if (replyMsg) {
+            const replyUser = await ctx.db.get(replyMsg.userId)
+            repliedTo = {
+              ...replyMsg,
+              user: replyUser,
+            }
+          }
+        }
+
+        return {
+          ...message,
+          user,
+          repliedTo,
+        }
+      }),
+    )
+  },
+})
 
 export const getAndCleanOldMessages = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const now = Date.now();
-    const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
-    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+    const now = Date.now()
+    const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000
+    const oneDayAgo = now - 24 * 60 * 60 * 1000
 
-    const keysToDelete: string[] = [];
+    const keysToDelete: string[] = []
 
     // 1. Delete all messages older than 1 week
     const oldestMessages = await ctx.db
-      .query("messages")
-      .withIndex("by_createdAt", (q) => q.lt("createdAt", oneWeekAgo))
-      .collect();
+      .query('messages')
+      .withIndex('by_createdAt', (q) => q.lt('createdAt', oneWeekAgo))
+      .collect()
 
     for (const msg of oldestMessages) {
       if (msg.imageUrl) {
-        const urlParts = msg.imageUrl.split("/");
-        const key = urlParts[urlParts.length - 1];
-        if (key) keysToDelete.push(key);
+        const urlParts = msg.imageUrl.split('/')
+        const key = urlParts[urlParts.length - 1]
+        if (key) keysToDelete.push(key)
       }
-      await ctx.db.delete(msg._id);
+      await ctx.db.delete(msg._id)
     }
 
     // 2. Clear or delete images in messages older than 24 hours (but newer than 1 week)
     const middleMessages = await ctx.db
-      .query("messages")
-      .withIndex("by_createdAt", (q) => q.gt("createdAt", oneWeekAgo).lt("createdAt", oneDayAgo))
-      .collect();
+      .query('messages')
+      .withIndex('by_createdAt', (q) =>
+        q.gt('createdAt', oneWeekAgo).lt('createdAt', oneDayAgo),
+      )
+      .collect()
 
     for (const msg of middleMessages) {
       if (msg.imageUrl) {
-        const urlParts = msg.imageUrl.split("/");
-        const key = urlParts[urlParts.length - 1];
-        if (key) keysToDelete.push(key);
+        const urlParts = msg.imageUrl.split('/')
+        const key = urlParts[urlParts.length - 1]
+        if (key) keysToDelete.push(key)
 
         if (msg.body) {
           // If message contains text body, just remove image reference
-          await ctx.db.patch(msg._id, { imageUrl: undefined });
+          await ctx.db.patch(msg._id, { imageUrl: undefined })
         } else {
           // If image only, delete the message completely
-          await ctx.db.delete(msg._id);
+          await ctx.db.delete(msg._id)
         }
       }
     }
 
-    return keysToDelete;
+    return keysToDelete
   },
-});
+})
 
 export const deleteImageReference = internalMutation({
   args: {
     messageId: v.id('messages'),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getAuthUserId(ctx)
     if (userId === null) {
-      throw new Error('Not authenticated');
+      throw new Error('Not authenticated')
     }
 
-    const message = await ctx.db.get(args.messageId);
+    const message = await ctx.db.get(args.messageId)
     if (!message) {
-      throw new Error('Message not found');
+      throw new Error('Message not found')
     }
 
     if (message.userId !== userId) {
-      throw new Error('Not authorized to delete this image');
+      throw new Error('Not authorized to delete this image')
     }
 
     if (!message.imageUrl) {
-      return null;
+      return null
     }
 
-    const urlParts = message.imageUrl.split("/");
-    const key = urlParts[urlParts.length - 1];
+    const urlParts = message.imageUrl.split('/')
+    const key = urlParts[urlParts.length - 1]
 
     if (message.body) {
       // Keep the text message but remove the image URL reference
-      await ctx.db.patch(message._id, { imageUrl: undefined });
+      await ctx.db.patch(message._id, { imageUrl: undefined })
     } else {
       // If there is no text body, delete the entire message
-      await ctx.db.delete(message._id);
+      await ctx.db.delete(message._id)
     }
 
-    return key;
+    return key
   },
-});
+})
+
+export const backfillMessages = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const messages = await ctx.db.query('messages').collect()
+    let count = 0
+    for (const msg of messages) {
+      if (msg.chatroomId === undefined) {
+        await ctx.db.patch(msg._id, { chatroomId: null })
+        count++
+      }
+    }
+    return count
+  },
+})

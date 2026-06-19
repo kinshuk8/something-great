@@ -1,23 +1,24 @@
-import { createUploadthing, type FileRouter } from "uploadthing/server";
+import { createUploadthing } from 'uploadthing/server'
+import type { FileRouter } from 'uploadthing/server'
 
-const f = createUploadthing();
+const f = createUploadthing()
 
 export const uploadRouter = {
   imageUploader: f({
     image: {
-      maxFileSize: "16MB",
+      maxFileSize: '16MB',
       maxFileCount: 1,
     },
   })
-    .middleware(async ({ req }) => {
+    .middleware(async () => {
       // This runs on server before upload
-      return {};
+      return {}
     })
-    .onUploadComplete(async ({ metadata, file }) => {
+    .onUploadComplete(async ({ file }) => {
       // This runs on server after upload is successful
-      console.log("Upload complete for file:", file.ufsUrl);
-      return { url: file.ufsUrl };
+      console.log('Upload complete for file:', file.ufsUrl)
+      return { url: file.ufsUrl }
     }),
-} satisfies FileRouter;
+} satisfies FileRouter
 
-export type OurFileRouter = typeof uploadRouter;
+export type OurFileRouter = typeof uploadRouter
