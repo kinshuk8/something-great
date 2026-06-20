@@ -22,7 +22,8 @@ import {
   Settings,
   LogOut,
   ChevronLeft,
-  UserX,
+  Trash2,
+  Clock,
   MessageCircle,
   CornerUpLeft,
   X,
@@ -1283,7 +1284,14 @@ function RouteComponent() {
   const [replyingToMessage, setReplyingToMessage] = useState<any | null>(null)
 
   // Mobile UI state
-  const [mobileShowChat, setMobileShowChat] = useState(false)
+  const [mobileShowChat, setMobileShowChat] = useState(true)
+
+  // GIPHY Integration States
+  const [isGifPickerOpen, setIsGifPickerOpen] = useState(false)
+  const [gifSearchQuery, setGifSearchQuery] = useState('')
+  const [gifs, setGifs] = useState<any[]>([])
+  const [isSearchingGifs, setIsSearchingGifs] = useState(false)
+  const [gifError, setGifError] = useState<string | null>(null)
 
   // Refs for tracking drag swipe and scroll
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
@@ -1327,6 +1335,47 @@ function RouteComponent() {
       prevMessageCountRef.current = messages.length
     }
   }, [messages])
+
+  // Fetch GIFs from GIPHY API
+  useEffect(() => {
+    if (!isGifPickerOpen) return
+
+    const delayDebounce = setTimeout(async () => {
+      setIsSearchingGifs(true)
+      setGifError(null)
+
+      const apiKey = import.meta.env.VITE_GIPHY_API_KEY
+      if (!apiKey) {
+        setGifs([])
+        setGifError('GIPHY API Key missing. Please set VITE_GIPHY_API_KEY in .env.local')
+        setIsSearchingGifs(false)
+        return
+      }
+
+      try {
+        const url = gifSearchQuery.trim()
+          ? `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(gifSearchQuery)}&limit=12&rating=g`
+          : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=12&rating=g`
+        
+        const res = await fetch(url)
+        if (!res.ok) {
+          throw new Error(`HTTP error ${res.status}`)
+        }
+        const json = await res.json()
+        if (json.meta && json.meta.status !== 200) {
+          throw new Error(json.meta.msg || 'Failed to fetch GIFs')
+        }
+        setGifs(json.data || [])
+      } catch (err) {
+        console.error('Error fetching GIFs:', err)
+        setGifError(err instanceof Error ? err.message : 'Error searching GIFs')
+      } finally {
+        setIsSearchingGifs(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(delayDebounce)
+  }, [isGifPickerOpen, gifSearchQuery])
 
   // Active chat metadata
   const activeRoom = chatrooms?.find((r: any) => r._id === activeRoomId)
@@ -1430,6 +1479,16 @@ function RouteComponent() {
   }
 
   // ----------------------------------------------------------------------------
+  // EMOJI DETECTOR HELPER
+  // ----------------------------------------------------------------------------
+  const isOnlyEmojis = (str: string) => {
+    const cleanStr = str.replace(/\s+/g, '')
+    if (!cleanStr) return false
+    const emojiRegex = /^[\p{Extended_Pictographic}\u{1F3FB}-\u{1F3FF}\u{200D}\u{FE0F}]+$/u
+    return emojiRegex.test(cleanStr)
+  }
+
+  // ----------------------------------------------------------------------------
   // SWIPE-TO-REPLY TOUCH HANDLERS
   // ----------------------------------------------------------------------------
   const handleTouchStart = (e: React.TouchEvent, msgId: string) => {
@@ -1445,14 +1504,14 @@ function RouteComponent() {
     const deltaX = t.clientX - touchStartRef.current.x
     const deltaY = t.clientY - touchStartRef.current.y
 
-    // Only register right swipe if it is mostly horizontal
-    if (deltaX > 0 && Math.abs(deltaY) < 30) {
-      setSwipeDistance(Math.min(deltaX, 70))
+    // Allow swipe if it is primarily horizontal and moving to the right
+    if (deltaX > 0 && Math.abs(deltaX) > Math.abs(deltaY) * 0.8) {
+      setSwipeDistance(Math.min(deltaX, 80))
     }
   }
 
   const handleTouchEnd = (msg: any) => {
-    if (swipeDistance > 55) {
+    if (swipeDistance > 45) {
       setReplyingToMessage(msg)
       playPingSound()
     }
@@ -1929,7 +1988,7 @@ function RouteComponent() {
                     {swipingMessageId === msg._id && swipeDistance > 15 && (
                       <div
                         className={`absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center p-1 rounded-full transition-all duration-150 ${
-                          swipeDistance > 55
+                          swipeDistance > 45
                             ? 'bg-primary text-primary-foreground scale-110'
                             : 'bg-muted text-muted-foreground'
                         }`}
@@ -1994,11 +2053,15 @@ function RouteComponent() {
                       {/* Bubble Text */}
                       {msg.body && (
                         <p
-                          className={`text-xs leading-relaxed break-words px-3 py-2 rounded-2xl ${
-                            isMe
-                              ? 'bg-foreground text-background rounded-tr-none'
-                              : 'bg-card text-foreground border border-border/80 rounded-tl-none'
-                          }`}
+                          className={
+                            isOnlyEmojis(msg.body)
+                              ? `text-4xl py-1 select-all break-words leading-none`
+                              : `text-xs leading-relaxed break-words px-3 py-2 rounded-2xl ${
+                                  isMe
+                                    ? 'bg-foreground text-background rounded-tr-none'
+                                    : 'bg-card text-foreground border border-border/80 rounded-tl-none'
+                                }`
+                          }
                         >
                           {renderBodyWithMentions(msg.body)}
                         </p>
@@ -2030,9 +2093,17 @@ function RouteComponent() {
                               className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-black/60 hover:bg-destructive text-white rounded-lg p-1.5 transition-all cursor-pointer shadow-md"
                               title="Delete image forever"
                             >
-                              <UserX className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
+                        </div>
+                      )}
+
+                      {/* Expired Image Placeholder */}
+                      {msg.imageDeletedReason === 'expired' && (
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/30 border border-border/50 px-2.5 py-1.5 rounded-xl select-none max-w-xs italic mt-1">
+                          <Clock className="w-3.5 h-3.5 text-muted-foreground/80 shrink-0" />
+                          <span>24hrs has elapsed, the image is now gone</span>
                         </div>
                       )}
 
@@ -2079,7 +2150,7 @@ function RouteComponent() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold truncate">
-                  {fileInputRef.current?.files?.[0]?.name || 'Selected Image'}
+                  {fileInputRef.current?.files?.[0]?.name || (imageUrl?.includes('giphy.com') ? 'GIPHY Image' : 'Selected Image')}
                 </p>
                 {isUploading && (
                   <div className="flex items-center gap-2 mt-2">
@@ -2174,6 +2245,78 @@ function RouteComponent() {
               </div>
             )}
 
+            {/* GIPHY GIF Picker Popover */}
+            {isGifPickerOpen && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-card shadow-2xl p-3 z-30 font-mono text-xs max-h-72 overflow-hidden flex flex-col gap-2 animate-in slide-in-from-bottom-2 duration-150">
+                <div className="flex items-center justify-between border-b border-border/60 pb-1.5">
+                  <span className="font-bold text-muted-foreground uppercase text-[10px]">
+                    Search GIPHY
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsGifPickerOpen(false)
+                      setGifSearchQuery('')
+                    }}
+                    className="text-muted-foreground hover:text-destructive cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <Input
+                  value={gifSearchQuery}
+                  onChange={(e) => setGifSearchQuery(e.target.value)}
+                  placeholder="Search GIFs..."
+                  autoFocus
+                  className="h-8 rounded-lg text-xs bg-muted/45"
+                />
+
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  {gifError ? (
+                    <div className="text-center py-6 text-red-400 text-[10px]">
+                      {gifError}
+                    </div>
+                  ) : isSearchingGifs ? (
+                    <div className="flex items-center justify-center py-10 gap-2">
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <span className="text-[10px] text-muted-foreground">Searching...</span>
+                    </div>
+                  ) : gifs.length === 0 ? (
+                    <div className="text-center py-10 text-muted-foreground text-[10px]">
+                      {gifSearchQuery ? 'No GIFs found' : 'No trending GIFs'}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {gifs.map((gif) => {
+                        const thumbnailUrl = gif.images.fixed_height_downsampled?.url || gif.images.fixed_height?.url
+                        const fullUrl = gif.images.original?.url
+                        return (
+                          <div
+                            key={gif.id}
+                            onClick={() => {
+                              setImageUrl(fullUrl)
+                              setLocalPreview(fullUrl)
+                              setIsGifPickerOpen(false)
+                              setGifSearchQuery('')
+                            }}
+                            className="aspect-[4/3] rounded-lg overflow-hidden border border-border/40 bg-muted hover:border-primary/50 cursor-pointer transition-all hover:scale-[1.02]"
+                          >
+                            <img
+                              src={thumbnailUrl}
+                              alt={gif.title}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <Button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -2187,6 +2330,22 @@ function RouteComponent() {
               ) : (
                 <Plus className="w-4 h-4" />
               )}
+            </Button>
+
+            <Button
+              type="button"
+              onClick={() => {
+                setIsGifPickerOpen(!isGifPickerOpen)
+              }}
+              variant="outline"
+              className={`shrink-0 rounded-xl border-border/80 cursor-pointer h-9 px-2 text-xs font-bold font-sans transition-all flex items-center justify-center ${
+                isGifPickerOpen
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-card text-muted-foreground hover:text-foreground'
+              }`}
+              title="Find and share GIF"
+            >
+              GIF
             </Button>
 
             <Input

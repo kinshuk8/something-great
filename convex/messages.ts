@@ -125,13 +125,11 @@ export const getAndCleanOldMessages = internalMutation({
         const key = urlParts[urlParts.length - 1]
         if (key) keysToDelete.push(key)
 
-        if (msg.body) {
-          // If message contains text body, just remove image reference
-          await ctx.db.patch(msg._id, { imageUrl: undefined })
-        } else {
-          // If image only, delete the message completely
-          await ctx.db.delete(msg._id)
-        }
+        // Keep the message in history but remove the image and set the expiration reason
+        await ctx.db.patch(msg._id, {
+          imageUrl: undefined,
+          imageDeletedReason: 'expired',
+        })
       }
     }
 

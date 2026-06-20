@@ -30,6 +30,7 @@ export default defineSchema({
     chatroomId: v.optional(v.union(v.id('chatrooms'), v.null())),
     replyToId: v.optional(v.id('messages')),
     mentions: v.optional(v.array(v.id('users'))),
+    imageDeletedReason: v.optional(v.string()),
   })
     .index('by_createdAt', ['createdAt'])
     .index('by_chatroomId_and_createdAt', ['chatroomId', 'createdAt']),
