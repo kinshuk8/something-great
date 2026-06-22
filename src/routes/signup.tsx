@@ -1,7 +1,7 @@
 import { Input } from '#/components/ui/input'
 import { Button } from '#/components/ui/button'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuthActions, useConvexAuth } from '@convex-dev/auth/react'
 
 export const Route = createFileRoute('/signup')({
@@ -27,8 +27,13 @@ function RouteComponent() {
     )
   }
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.navigate({ to: '/chat' })
+    }
+  }, [isAuthenticated, router])
+
   if (isAuthenticated) {
-    router.navigate({ to: '/chat' })
     return null
   }
 
@@ -49,12 +54,13 @@ function RouteComponent() {
     setIsSubmitting(true)
 
     try {
+      const normalizedEmail = email.toLowerCase().trim()
       await signIn('password', {
         flow: 'signUp',
-        email,
+        email: normalizedEmail,
         password,
-        displayName: displayName || email.split('@')[0],
-        username: email.split('@')[0],
+        displayName: displayName || normalizedEmail.split('@')[0],
+        username: normalizedEmail.split('@')[0],
       })
       router.navigate({ to: '/chat' })
     } catch (err) {

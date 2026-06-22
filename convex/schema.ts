@@ -25,7 +25,13 @@ export default defineSchema({
   messages: defineTable({
     userId: v.id('users'),
     body: v.optional(v.string()),
+    bodyIv: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    imageIv: v.optional(v.string()),
+    audioUrl: v.optional(v.string()),
+    audioIv: v.optional(v.string()),
+    audioDuration: v.optional(v.number()),
+    seen: v.optional(v.boolean()),
     createdAt: v.number(),
     chatroomId: v.optional(v.union(v.id('chatrooms'), v.null())),
     replyToId: v.optional(v.id('messages')),
@@ -53,4 +59,19 @@ export default defineSchema({
     .index('by_senderId_and_receiverId', ['senderId', 'receiverId'])
     .index('by_receiverId_and_status', ['receiverId', 'status'])
     .index('by_senderId_and_status', ['senderId', 'status']),
+
+  userPublicKeys: defineTable({
+    userId: v.id('users'),
+    publicKey: v.string(), // JSON string representing JWK public key
+    encryptedPrivateKey: v.optional(v.string()), // Encrypted private key for backup
+    backupIv: v.optional(v.string()),
+    backupSalt: v.optional(v.string()),
+  }).index('by_userId', ['userId']),
+
+  roomKeys: defineTable({
+    chatroomId: v.id('chatrooms'),
+    userId: v.id('users'),
+    encryptedKey: v.string(),
+    iv: v.string(),
+  }).index('by_chatroomId_and_userId', ['chatroomId', 'userId']),
 })

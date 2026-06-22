@@ -1,7 +1,27 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
-import { useQuery, useMutation, useAction } from 'convex/react'
+import { useQuery, useMutation, useAction, useConvex } from 'convex/react'
 import { useAuthActions, useConvexAuth } from '@convex-dev/auth/react'
+import {
+  generateIdentityKeyPair,
+  exportKey,
+  importPublicKey,
+  importPrivateKey,
+  importRawRoomKey,
+  exportRawRoomKey,
+  generateRoomKey,
+  deriveSharedSecret,
+  encryptText,
+  decryptText,
+  encryptFile,
+  encryptPrivateKeyBackup,
+  decryptPrivateKeyBackup,
+  base64ToArrayBuffer,
+  arrayBufferToBase64,
+} from '../lib/crypto'
+import { EncryptedImage } from '#/components/EncryptedImage'
+import { DecryptedText, DecryptedTextInline } from '#/components/DecryptedText'
+import { VoiceMessagePlayer } from '#/components/VoiceMessagePlayer'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
@@ -28,6 +48,9 @@ import {
   CornerUpLeft,
   X,
   Check,
+  CheckCheck,
+  Mic,
+  Loader2,
   User,
   Users,
 } from 'lucide-react'
@@ -497,10 +520,12 @@ function ProfileModal({ isOpen, onClose, currentUser }: ProfileModalProps) {
 // ----------------------------------------------------------------------------
 interface ImageModalProps {
   imageUrl: string | null
+  imageIv: string | null
+  aesKey: CryptoKey | null
   onClose: () => void
 }
 
-function ImageModal({ imageUrl, onClose }: ImageModalProps) {
+function ImageModal({ imageUrl, imageIv, aesKey, onClose }: ImageModalProps) {
   if (!imageUrl) return null
   return (
     <>
@@ -519,11 +544,213 @@ function ImageModal({ imageUrl, onClose }: ImageModalProps) {
         >
           <X className="w-5 h-5" />
         </button>
-        <img
-          src={imageUrl}
-          alt="Expanded chat preview"
-          className="max-w-full max-h-[85vh] rounded-xl object-contain border border-border shadow-2xl select-none"
-        />
+        {imageIv && aesKey ? (
+          <EncryptedImage
+            imageUrl={imageUrl}
+            imageIv={imageIv}
+            aesKey={aesKey}
+            alt="Expanded chat preview"
+            className="max-w-full max-h-[85vh] rounded-xl object-contain border border-border shadow-2xl select-none"
+          />
+        ) : (
+          <img
+            src={imageUrl}
+            alt="Expanded chat preview"
+            className="max-w-full max-h-[85vh] rounded-xl object-contain border border-border shadow-2xl select-none"
+          />
+        )}
+      </div>
+    </>
+  )
+}
+
+interface BackupSetupModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSetup: (passphrase: string) => Promise<void>
+  loading: boolean
+  error: string | null
+}
+
+function BackupSetupModal({
+  isOpen,
+  onClose,
+  onSetup,
+  loading,
+  error,
+}: BackupSetupModalProps) {
+  const [passphrase, setPassphrase] = useState('')
+  const [confirmPassphrase, setConfirmPassphrase] = useState('')
+  const [localError, setLocalError] = useState<string | null>(null)
+
+  if (!isOpen) return null
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLocalError(null)
+    if (!passphrase.trim()) {
+      setLocalError('Passphrase cannot be empty')
+      return
+    }
+    if (passphrase !== confirmPassphrase) {
+      setLocalError('Passphrases do not match')
+      return
+    }
+    try {
+      await onSetup(passphrase)
+      setPassphrase('')
+      setConfirmPassphrase('')
+    } catch (err) {
+      // handled by parent
+    }
+  }
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 bg-background/60 backdrop-blur-md z-40 animate-in fade-in duration-200"
+        onClick={onClose}
+      />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-full max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-bold flex items-center gap-2">
+            <Lock className="w-4 h-4 text-primary" /> Setup Key Backup
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg p-1.5 transition-colors cursor-pointer"
+          >
+            <X className="w-[18px] h-[18px]" />
+          </button>
+        </div>
+
+        <p className="text-[10px] text-muted-foreground mb-4 leading-normal">
+          Your chat messages and images are end-to-end encrypted. Create a
+          backup passphrase to secure your private keys. This allows you to
+          restore your chat history when logging in from other devices.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-[10px]">Passphrase</Label>
+            <Input
+              type="password"
+              placeholder="Enter secure passphrase"
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
+              className="text-xs h-9 bg-card border-border rounded-xl focus:border-foreground"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-[10px]">Confirm Passphrase</Label>
+            <Input
+              type="password"
+              placeholder="Confirm passphrase"
+              value={confirmPassphrase}
+              onChange={(e) => setConfirmPassphrase(e.target.value)}
+              className="text-xs h-9 bg-card border-border rounded-xl focus:border-foreground"
+            />
+          </div>
+
+          {(error || localError) && (
+            <div className="text-red-500 text-[10px] bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-xl">
+              {localError || error}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="text-xs h-9 px-4 rounded-xl cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="text-xs h-9 px-4 rounded-xl cursor-pointer bg-foreground text-background"
+            >
+              {loading ? 'Creating Backup...' : 'Save Backup'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </>
+  )
+}
+
+interface BackupRestoreModalProps {
+  isOpen: boolean
+  onRestore: (passphrase: string) => Promise<void>
+  loading: boolean
+  error: string | null
+}
+
+function BackupRestoreModal({
+  isOpen,
+  onRestore,
+  loading,
+  error,
+}: BackupRestoreModalProps) {
+  const [passphrase, setPassphrase] = useState('')
+
+  if (!isOpen) return null
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!passphrase.trim()) return
+    await onRestore(passphrase)
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-45 animate-in fade-in duration-200" />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-full max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono">
+        <div className="mb-4">
+          <h2 className="text-sm font-bold flex items-center gap-2">
+            <Lock className="w-4 h-4 text-primary animate-pulse" /> Restore
+            Encryption Keys
+          </h2>
+        </div>
+
+        <p className="text-[10px] text-muted-foreground mb-4 leading-normal">
+          A secure key backup was found on the server for your account. Please
+          enter your backup passphrase to restore your private keys and decrypt
+          your chat history on this browser.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-[10px]">Backup Passphrase</Label>
+            <Input
+              type="password"
+              placeholder="Enter passphrase"
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
+              className="text-xs h-9 bg-card border-border rounded-xl focus:border-foreground"
+            />
+          </div>
+
+          {error && (
+            <div className="text-red-500 text-[10px] bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-xl">
+              {error}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full text-xs h-9 px-4 rounded-xl cursor-pointer bg-foreground text-background"
+            >
+              {loading ? 'Restoring Keys...' : 'Restore Keys & Access Chat'}
+            </Button>
+          </div>
+        </form>
       </div>
     </>
   )
@@ -1274,7 +1501,10 @@ function RouteComponent() {
   const [isJoinRoomOpen, setIsJoinRoomOpen] = useState(false)
 
   // Zoom crop and details modals state
-  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [selectedImageDetails, setSelectedImageDetails] = useState<{
+    url: string
+    iv?: string
+  } | null>(null)
   const [selectedUserForDetails, setSelectedUserForDetails] = useState<
     any | null
   >(null)
@@ -1303,6 +1533,19 @@ function RouteComponent() {
   const prevMessageCountRef = useRef<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Cryptography Setup State
+  const [myKeys, setMyKeys] = useState<{
+    privateKey: CryptoKey
+    publicKey: CryptoKey
+    publicKeyJwkStr: string
+  } | null>(null)
+  const [aesKey, setAesKey] = useState<CryptoKey | null>(null)
+  const [isBackupSetupOpen, setIsBackupSetupOpen] = useState(false)
+  const [isBackupRestoreOpen, setIsBackupRestoreOpen] = useState(false)
+  const [backupError, setBackupError] = useState<string | null>(null)
+  const [backupLoading, setBackupLoading] = useState(false)
+  const imageIvRef = useRef<string | undefined>(undefined)
+
   // DB queries and mutations
   const currentUser = useQuery(api.users.getCurrentUser)
   const messages = useQuery(api.messages.getMessages, {
@@ -1314,12 +1557,255 @@ function RouteComponent() {
   const receivedRequests = useQuery(api.friends.getFriendRequests)
   const sentRequests = useQuery(api.friends.getSentRequests)
   const allUsers = useQuery(api.users.listAllUsers)
-
   const sendMessage = useMutation(api.messages.sendMessage)
   const createRoom = useMutation(api.chatrooms.createChatroom)
   const joinRoom = useMutation(api.chatrooms.joinChatroom)
   const checkOrCreateDM = useMutation(api.chatrooms.checkOrCreateDM)
   const deleteImageAction = useAction(api.cleanup.deleteImage)
+  const markMessagesAsSeen = useMutation(api.messages.markMessagesAsSeen)
+
+  // Voice Recording States
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingDuration, setRecordingDuration] = useState(0)
+  const [isUploadingVoice, setIsUploadingVoice] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const recordingTimerRef = useRef<any>(null)
+  // Encryption Queries & Mutations
+  const registerPublicKey = useMutation(api.keys.registerPublicKey)
+  const storeRoomKeys = useMutation(api.keys.storeRoomKeys)
+  const myBackupDetails = useQuery(api.keys.getMyBackupDetails)
+  const convex = useConvex()
+
+  // E2EE key derivation hook
+  const activeRoom = chatrooms?.find((r: any) => r._id === activeRoomId)
+  const keyDerivationUserId = activeRoom
+    ? activeRoom.isDM
+      ? activeRoom.memberIds.find((id) => id !== currentUser?._id)
+      : activeRoom.isPrivate
+        ? activeRoom.ownerId
+        : null
+    : null
+
+  const targetUserPublicKeyJwk = useQuery(
+    api.keys.getUserPublicKey,
+    keyDerivationUserId ? { userId: keyDerivationUserId } : 'skip',
+  )
+
+  const myRoomKeyRecord = useQuery(
+    api.keys.getRoomKey,
+    activeRoom && activeRoom.isPrivate ? { chatroomId: activeRoomId! } : 'skip',
+  )
+
+  // Load or generate user encryption keypair
+  useEffect(() => {
+    if (!currentUser) return
+
+    const initKeys = async () => {
+      try {
+        const storedPriv = localStorage.getItem(`e2ee_priv_${currentUser._id}`)
+        const storedPub = localStorage.getItem(`e2ee_pub_${currentUser._id}`)
+
+        if (storedPriv && storedPub) {
+          const privateKey = await importPrivateKey(storedPriv)
+          const publicKey = await importPublicKey(storedPub)
+          setMyKeys({
+            privateKey,
+            publicKey,
+            publicKeyJwkStr: storedPub,
+          })
+        } else {
+          if (myBackupDetails === undefined) return
+
+          if (myBackupDetails && myBackupDetails.encryptedPrivateKey) {
+            setIsBackupRestoreOpen(true)
+          } else {
+            const keyPair = await generateIdentityKeyPair()
+            const privJwk = await exportKey(keyPair.privateKey)
+            const pubJwk = await exportKey(keyPair.publicKey)
+
+            localStorage.setItem(`e2ee_priv_${currentUser._id}`, privJwk)
+            localStorage.setItem(`e2ee_pub_${currentUser._id}`, pubJwk)
+
+            await registerPublicKey({ publicKey: pubJwk })
+
+            setMyKeys({
+              privateKey: keyPair.privateKey,
+              publicKey: keyPair.publicKey,
+              publicKeyJwkStr: pubJwk,
+            })
+            setIsBackupSetupOpen(true)
+          }
+        }
+      } catch (err) {
+        console.error('Error initializing E2EE keys:', err)
+      }
+    }
+
+    initKeys()
+  }, [currentUser, myBackupDetails])
+
+  // Derive AES symmetric key for the current room
+  useEffect(() => {
+    let active = true
+
+    const deriveKey = async () => {
+      if (!activeRoomId || !activeRoom || !myKeys) {
+        setAesKey(null)
+        return
+      }
+
+      try {
+        if (activeRoom.isDM) {
+          if (!targetUserPublicKeyJwk) {
+            setAesKey(null)
+            return
+          }
+          const theirPubKey = await importPublicKey(targetUserPublicKeyJwk)
+          const sharedSecret = await deriveSharedSecret(
+            myKeys.privateKey,
+            theirPubKey,
+          )
+          if (active) {
+            setAesKey(sharedSecret)
+          }
+        } else if (activeRoom.isPrivate) {
+          if (!myRoomKeyRecord || !targetUserPublicKeyJwk) {
+            setAesKey(null)
+            return
+          }
+          const ownerPubKey = await importPublicKey(targetUserPublicKeyJwk)
+          const sharedSecretWithCreator = await deriveSharedSecret(
+            myKeys.privateKey,
+            ownerPubKey,
+          )
+
+          const rawKeyBase64 = await decryptText(
+            myRoomKeyRecord.encryptedKey,
+            myRoomKeyRecord.iv,
+            sharedSecretWithCreator,
+          )
+
+          const roomAesKey = await importRawRoomKey(
+            base64ToArrayBuffer(rawKeyBase64),
+          )
+          if (active) {
+            setAesKey(roomAesKey)
+          }
+        } else {
+          setAesKey(null)
+        }
+      } catch (err) {
+        console.error('Error deriving room AES key:', err)
+        if (active) {
+          setAesKey(null)
+        }
+      }
+    }
+
+    deriveKey()
+    return () => {
+      active = false
+    }
+  }, [
+    activeRoomId,
+    activeRoom,
+    myKeys,
+    targetUserPublicKeyJwk,
+    myRoomKeyRecord,
+  ])
+
+  // Reset upload states when room changes
+  useEffect(() => {
+    setImageUrl(null)
+    setLocalPreview(null)
+    imageIvRef.current = undefined
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }, [activeRoomId])
+
+  // Mark messages as seen when room becomes active or new messages arrive (DMs only)
+  useEffect(() => {
+    if (activeRoomId && activeRoom?.isDM && messages) {
+      const hasUnseen = messages.some(
+        (msg: any) => msg.userId !== currentUser?._id && !msg.seen,
+      )
+      if (hasUnseen) {
+        markMessagesAsSeen({ chatroomId: activeRoomId })
+      }
+    }
+  }, [activeRoomId, activeRoom, messages, currentUser, markMessagesAsSeen])
+
+  const handleRestoreBackup = async (passphrase: string) => {
+    if (
+      !currentUser ||
+      !myBackupDetails ||
+      !myBackupDetails.encryptedPrivateKey
+    )
+      return
+
+    setBackupLoading(true)
+    setBackupError(null)
+
+    try {
+      const decryptedPrivJwk = await decryptPrivateKeyBackup(
+        myBackupDetails.encryptedPrivateKey,
+        passphrase,
+        myBackupDetails.backupIv!,
+        myBackupDetails.backupSalt!,
+      )
+
+      localStorage.setItem(`e2ee_priv_${currentUser._id}`, decryptedPrivJwk)
+      localStorage.setItem(
+        `e2ee_pub_${currentUser._id}`,
+        myBackupDetails.publicKey,
+      )
+
+      const privateKey = await importPrivateKey(decryptedPrivJwk)
+      const publicKey = await importPublicKey(myBackupDetails.publicKey)
+
+      setMyKeys({
+        privateKey,
+        publicKey,
+        publicKeyJwkStr: myBackupDetails.publicKey,
+      })
+
+      setIsBackupRestoreOpen(false)
+    } catch (err) {
+      console.error('Backup restore failed:', err)
+      setBackupError('Incorrect passphrase. Please try again.')
+      throw err
+    } finally {
+      setBackupLoading(false)
+    }
+  }
+
+  const handleSetupBackup = async (passphrase: string) => {
+    if (!currentUser || !myKeys || !passphrase.trim()) return
+
+    setBackupLoading(true)
+    setBackupError(null)
+
+    try {
+      const privJwk = localStorage.getItem(`e2ee_priv_${currentUser._id}`)!
+      const backup = await encryptPrivateKeyBackup(privJwk, passphrase)
+
+      await registerPublicKey({
+        publicKey: myKeys.publicKeyJwkStr,
+        encryptedPrivateKey: backup.encryptedPrivateKey,
+        backupIv: backup.iv,
+        backupSalt: backup.salt,
+      })
+
+      setIsBackupSetupOpen(false)
+      alert('Key backup completed successfully!')
+    } catch (err) {
+      console.error('Backup setup failed:', err)
+      setBackupError('Failed to set up backup. Please try again.')
+      throw err
+    } finally {
+      setBackupLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (messages !== undefined) {
@@ -1347,7 +1833,9 @@ function RouteComponent() {
       const apiKey = import.meta.env.VITE_GIPHY_API_KEY
       if (!apiKey) {
         setGifs([])
-        setGifError('GIPHY API Key missing. Please set VITE_GIPHY_API_KEY in .env.local')
+        setGifError(
+          'GIPHY API Key missing. Please set VITE_GIPHY_API_KEY in .env.local',
+        )
         setIsSearchingGifs(false)
         return
       }
@@ -1356,7 +1844,7 @@ function RouteComponent() {
         const url = gifSearchQuery.trim()
           ? `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(gifSearchQuery)}&limit=12&rating=g`
           : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=12&rating=g`
-        
+
         const res = await fetch(url)
         if (!res.ok) {
           throw new Error(`HTTP error ${res.status}`)
@@ -1378,7 +1866,6 @@ function RouteComponent() {
   }, [isGifPickerOpen, gifSearchQuery])
 
   // Active chat metadata
-  const activeRoom = chatrooms?.find((r: any) => r._id === activeRoomId)
   const chatTitle =
     activeRoomId === null
       ? 'Global Chat'
@@ -1432,6 +1919,12 @@ function RouteComponent() {
     },
   })
 
+  const { startUpload: startVoiceUpload } = useUploadThing('voiceUploader', {
+    onUploadError: (err) => {
+      alert(`Error uploading voice message: ${err.message}`)
+      setIsUploadingVoice(false)
+    },
+  })
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -1466,7 +1959,15 @@ function RouteComponent() {
     setLocalPreview(URL.createObjectURL(file))
     setUploadProgress(0)
     try {
-      await startUpload([file])
+      let fileToUpload = file
+      if (aesKey) {
+        const encrypted = await encryptFile(file, aesKey)
+        fileToUpload = encrypted.encryptedFile
+        imageIvRef.current = encrypted.iv
+      } else {
+        imageIvRef.current = undefined
+      }
+      await startUpload([fileToUpload])
     } catch (err) {
       console.error(err)
     }
@@ -1475,18 +1976,129 @@ function RouteComponent() {
   const handleClearImage = () => {
     setImageUrl(null)
     setLocalPreview(null)
+    imageIvRef.current = undefined
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // ----------------------------------------------------------------------------
-  // EMOJI DETECTOR HELPER
-  // ----------------------------------------------------------------------------
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      })
+      audioChunksRef.current = []
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm',
+        audioBitsPerSecond: 128000,
+      })
+      mediaRecorderRef.current = mediaRecorder
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+
+      mediaRecorder.onstop = async () => {
+        if (audioChunksRef.current.length === 0) return
+
+        setIsUploadingVoice(true)
+        try {
+          const duration = recordingDuration
+          const audioBlob = new Blob(audioChunksRef.current, {
+            type: 'audio/webm',
+          })
+          const audioFile = new File([audioBlob], `voice-${Date.now()}.webm`, {
+            type: 'audio/webm',
+          })
+
+          let fileToUpload = audioFile
+          let audioIv: string | undefined = undefined
+
+          if (aesKey) {
+            const encrypted = await encryptFile(audioFile, aesKey)
+            fileToUpload = encrypted.encryptedFile
+            audioIv = encrypted.iv
+          }
+
+          const res = await startVoiceUpload([fileToUpload])
+          if (res && res[0]) {
+            const audioUrl = res[0].ufsUrl || res[0].url
+            await sendMessage({
+              audioUrl,
+              audioIv,
+              audioDuration: duration,
+              chatroomId: activeRoomId,
+              replyToId: replyingToMessage?._id,
+            })
+            setReplyingToMessage(null)
+          }
+        } catch (err) {
+          console.error('Failed to process voice recording:', err)
+          alert('Failed to send voice message')
+        } finally {
+          setIsUploadingVoice(false)
+        }
+      }
+
+      mediaRecorder.start()
+      setIsRecording(true)
+      setRecordingDuration(0)
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1)
+      }, 1000)
+    } catch (err) {
+      console.error('Error starting voice recording:', err)
+      alert('Could not access microphone')
+    }
+  }
+
+  const stopRecording = () => {
+    if (
+      !mediaRecorderRef.current ||
+      mediaRecorderRef.current.state === 'inactive'
+    )
+      return
+
+    mediaRecorderRef.current.stop()
+    mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop())
+
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current)
+      recordingTimerRef.current = null
+    }
+
+    setIsRecording(false)
+  }
+
+  const cancelRecording = () => {
+    if (!mediaRecorderRef.current) return
+
+    audioChunksRef.current = []
+    mediaRecorderRef.current.stop()
+    mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop())
+
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current)
+      recordingTimerRef.current = null
+    }
+
+    setIsRecording(false)
+    setRecordingDuration(0)
+  }
+
+  /* eslint-disable no-misleading-character-class */
   const isOnlyEmojis = (str: string) => {
     const cleanStr = str.replace(/\s+/g, '')
     if (!cleanStr) return false
-    const emojiRegex = /^[\p{Extended_Pictographic}\u{1F3FB}-\u{1F3FF}\u{200D}\u{FE0F}]+$/u
+    const emojiRegex =
+      /^[\p{Extended_Pictographic}\u{1F3FB}-\u{1F3FF}\u{200D}\u{FE0F}]+$/u
     return emojiRegex.test(cleanStr)
   }
+  /* eslint-enable no-misleading-character-class */
 
   // ----------------------------------------------------------------------------
   // SWIPE-TO-REPLY TOUCH HANDLERS
@@ -1601,9 +2213,22 @@ function RouteComponent() {
       })
     }
 
+    let encryptedBody: string | undefined = undefined
+    let bodyIv: string | undefined = undefined
+
+    if (aesKey && body.trim()) {
+      const enc = await encryptText(body.trim(), aesKey)
+      encryptedBody = enc.ciphertext
+      bodyIv = enc.iv
+    } else {
+      encryptedBody = body.trim() || undefined
+    }
+
     await sendMessage({
-      body: body.trim() || undefined,
+      body: encryptedBody,
+      bodyIv: bodyIv,
       imageUrl: imageUrl || undefined,
+      imageIv: imageIvRef.current,
       chatroomId: activeRoomId,
       replyToId: replyingToMessage?._id,
       mentions: mentions.length > 0 ? mentions : undefined,
@@ -1613,6 +2238,7 @@ function RouteComponent() {
     setImageUrl(null)
     setLocalPreview(null)
     setReplyingToMessage(null)
+    imageIvRef.current = undefined
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -1623,12 +2249,56 @@ function RouteComponent() {
     members?: Id<'users'>[],
   ) => {
     try {
+      const initialMembers = [currentUser?._id, ...(members || [])].filter(
+        Boolean,
+      ) as Id<'users'>[]
+      const roomKeyDetails: Array<{
+        userId: Id<'users'>
+        encryptedKey: string
+        iv: string
+      }> = []
+
+      if (isPrivate && myKeys) {
+        const roomKey = await generateRoomKey()
+        const rawKeyBytes = await exportRawRoomKey(roomKey)
+        const rawKeyBase64 = arrayBufferToBase64(rawKeyBytes)
+
+        const publicKeys = await convex.query(api.keys.getUserPublicKeys, {
+          userIds: initialMembers,
+        })
+
+        for (const pkInfo of publicKeys) {
+          const memberPubKey = await importPublicKey(pkInfo.publicKey)
+          const sharedSecret = await deriveSharedSecret(
+            myKeys.privateKey,
+            memberPubKey,
+          )
+          const { ciphertext, iv } = await encryptText(
+            rawKeyBase64,
+            sharedSecret,
+          )
+          roomKeyDetails.push({
+            userId: pkInfo.userId,
+            encryptedKey: ciphertext,
+            iv: iv,
+          })
+        }
+      }
+
       const id = await createRoom({
         name,
         password,
         isPrivate: isPrivate || false,
         initialMembers: members,
       })
+
+      if (isPrivate && roomKeyDetails.length > 0) {
+        await storeRoomKeys({
+          chatroomId: id,
+          keys: roomKeyDetails,
+        })
+      }
+
       setActiveRoomId(id)
       setIsCreateRoomOpen(false)
       setMobileShowChat(true)
@@ -1711,6 +2381,15 @@ function RouteComponent() {
                     className="w-full text-left px-3 py-2 hover:bg-accent cursor-pointer flex items-center gap-1.5"
                   >
                     <Settings className="w-3.5 h-3.5" /> Profile Settings
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDropdown(false)
+                      setIsBackupSetupOpen(true)
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-accent cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Lock className="w-3.5 h-3.5" /> Key Backup Setup
                   </button>
                   <button
                     onClick={() => {
@@ -2046,27 +2725,36 @@ function RouteComponent() {
                           <span className="font-semibold">
                             @{msg.repliedTo.user?.username || 'user'}:
                           </span>{' '}
-                          {msg.repliedTo.body || 'Image'}
+                          <DecryptedTextInline
+                            body={msg.repliedTo.body}
+                            bodyIv={msg.repliedTo.bodyIv}
+                            aesKey={aesKey}
+                            fallback="Image"
+                          />
                         </div>
                       )}
-
                       {/* Bubble Text */}
                       {msg.body && (
-                        <p
-                          className={
-                            isOnlyEmojis(msg.body)
-                              ? `text-4xl py-1 select-all break-words leading-none`
-                              : `text-xs leading-relaxed break-words px-3 py-2 rounded-2xl ${
-                                  isMe
-                                    ? 'bg-foreground text-background rounded-tr-none'
-                                    : 'bg-card text-foreground border border-border/80 rounded-tl-none'
-                                }`
-                          }
-                        >
-                          {renderBodyWithMentions(msg.body)}
-                        </p>
+                        <DecryptedText
+                          body={msg.body}
+                          bodyIv={msg.bodyIv}
+                          aesKey={aesKey}
+                          isOnlyEmojis={isOnlyEmojis}
+                          renderBodyWithMentions={renderBodyWithMentions}
+                          isMe={!!isMe}
+                        />
                       )}
 
+                      {/* Bubble Voice Message */}
+                      {msg.audioUrl && (
+                        <VoiceMessagePlayer
+                          audioUrl={msg.audioUrl}
+                          audioIv={msg.audioIv}
+                          audioDuration={msg.audioDuration}
+                          aesKey={aesKey}
+                          isMe={!!isMe}
+                        />
+                      )}
                       {/* Bubble Image */}
                       {msg.imageUrl && (
                         <div
@@ -2076,15 +2764,28 @@ function RouteComponent() {
                         >
                           <div
                             onClick={() =>
-                              setSelectedImage(msg.imageUrl || null)
+                              setSelectedImageDetails({
+                                url: msg.imageUrl!,
+                                iv: msg.imageIv,
+                              })
                             }
                             className="cursor-zoom-in hover:opacity-95 transition-opacity"
                           >
-                            <img
-                              src={msg.imageUrl}
-                              alt="Uploaded chat image"
-                              className="w-full h-auto max-h-56 object-cover"
-                            />
+                            {msg.imageIv && aesKey ? (
+                              <EncryptedImage
+                                imageUrl={msg.imageUrl}
+                                imageIv={msg.imageIv}
+                                aesKey={aesKey}
+                                alt="Uploaded chat image"
+                                className="w-full h-auto max-h-56 object-cover"
+                              />
+                            ) : (
+                              <img
+                                src={msg.imageUrl}
+                                alt="Uploaded chat image"
+                                className="w-full h-auto max-h-56 object-cover"
+                              />
+                            )}
                           </div>
                           {isMe && !isDeletingImage && (
                             <button
@@ -2103,13 +2804,27 @@ function RouteComponent() {
                       {msg.imageDeletedReason === 'expired' && (
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/30 border border-border/50 px-2.5 py-1.5 rounded-xl select-none max-w-xs italic mt-1">
                           <Clock className="w-3.5 h-3.5 text-muted-foreground/80 shrink-0" />
-                          <span>24hrs has elapsed, the image is now gone</span>
+                          <span>7 days has elapsed, the image is now gone</span>
                         </div>
                       )}
 
                       {/* Meta/Sender Label */}
-                      <span className="text-[9px] font-semibold text-muted-foreground mt-0.5 px-1">
-                        {isMe ? 'You' : msg.user?.displayName || 'Anonymous'}
+                      <span className="text-[9px] font-semibold text-muted-foreground mt-0.5 px-1 flex items-center gap-1.5 select-none">
+                        <span>
+                          {isMe ? 'You' : msg.user?.displayName || 'Anonymous'}
+                        </span>
+                        {isMe && activeRoom?.isDM && (
+                          <span
+                            className="inline-flex items-center"
+                            title={msg.seen ? 'Seen' : 'Sent'}
+                          >
+                            {msg.seen ? (
+                              <CheckCheck className="w-3 h-3 text-sky-500 stroke-[2.5]" />
+                            ) : (
+                              <Check className="w-3 h-3 text-muted-foreground/50 stroke-[2.5]" />
+                            )}
+                          </span>
+                        )}
                       </span>
                     </div>
 
@@ -2150,7 +2865,10 @@ function RouteComponent() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold truncate">
-                  {fileInputRef.current?.files?.[0]?.name || (imageUrl?.includes('giphy.com') ? 'GIPHY Image' : 'Selected Image')}
+                  {fileInputRef.current?.files?.[0]?.name ||
+                    (imageUrl?.includes('giphy.com')
+                      ? 'GIPHY Image'
+                      : 'Selected Image')}
                 </p>
                 {isUploading && (
                   <div className="flex items-center gap-2 mt-2">
@@ -2280,7 +2998,9 @@ function RouteComponent() {
                   ) : isSearchingGifs ? (
                     <div className="flex items-center justify-center py-10 gap-2">
                       <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      <span className="text-[10px] text-muted-foreground">Searching...</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        Searching...
+                      </span>
                     </div>
                   ) : gifs.length === 0 ? (
                     <div className="text-center py-10 text-muted-foreground text-[10px]">
@@ -2289,7 +3009,9 @@ function RouteComponent() {
                   ) : (
                     <div className="grid grid-cols-3 gap-1.5">
                       {gifs.map((gif) => {
-                        const thumbnailUrl = gif.images.fixed_height_downsampled?.url || gif.images.fixed_height?.url
+                        const thumbnailUrl =
+                          gif.images.fixed_height_downsampled?.url ||
+                          gif.images.fixed_height?.url
                         const fullUrl = gif.images.original?.url
                         return (
                           <div
@@ -2317,52 +3039,106 @@ function RouteComponent() {
               </div>
             )}
 
-            <Button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              variant="outline"
-              className="shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0"
-              title="Upload image"
-            >
-              {isUploading ? (
-                <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
-            </Button>
+            {!isRecording && (
+              <>
+                <Button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  variant="outline"
+                  className="shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0"
+                  title="Upload image"
+                >
+                  {isUploading ? (
+                    <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                </Button>
 
-            <Button
-              type="button"
-              onClick={() => {
-                setIsGifPickerOpen(!isGifPickerOpen)
-              }}
-              variant="outline"
-              className={`shrink-0 rounded-xl border-border/80 cursor-pointer h-9 px-2 text-xs font-bold font-sans transition-all flex items-center justify-center ${
-                isGifPickerOpen
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-card text-muted-foreground hover:text-foreground'
-              }`}
-              title="Find and share GIF"
-            >
-              GIF
-            </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setIsGifPickerOpen(!isGifPickerOpen)
+                  }}
+                  variant="outline"
+                  className={`shrink-0 rounded-xl border-border/80 cursor-pointer h-9 px-2 text-xs font-bold font-sans transition-all flex items-center justify-center ${
+                    isGifPickerOpen
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-card text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Find and share GIF"
+                >
+                  GIF
+                </Button>
+              </>
+            )}
 
-            <Input
-              ref={inputRef}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Type message (@username to tag)..."
-              className="flex-1 rounded-xl bg-card border-border/80 h-9 px-4 py-2 font-mono text-xs focus:ring-1 focus:ring-ring"
-            />
+            {isRecording ? (
+              <div className="flex-1 flex items-center justify-between bg-muted/40 border border-border/60 rounded-xl h-9 px-3 font-mono text-xs animate-in fade-in duration-200">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                  <span className="text-muted-foreground font-bold">
+                    Recording Voice Note:
+                  </span>
+                  <span className="font-semibold">
+                    {Math.floor(recordingDuration / 60)}:
+                    {(recordingDuration % 60).toString().padStart(2, '0')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={cancelRecording}
+                    className="h-7 px-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Discard
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={stopRecording}
+                    disabled={isUploadingVoice}
+                    className="h-7 px-3 text-xs bg-foreground text-background hover:opacity-90 rounded-lg cursor-pointer flex items-center gap-1.5"
+                  >
+                    {isUploadingVoice ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5 fill-current" />
+                    )}
+                    Send
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <Input
+                  ref={inputRef}
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  placeholder="Type message (@username to tag)..."
+                  className="flex-1 rounded-xl bg-card border-border/80 h-9 px-4 py-2 font-mono text-xs focus:ring-1 focus:ring-ring"
+                />
 
-            <Button
-              type="submit"
-              disabled={isUploading || (!body.trim() && !imageUrl)}
-              className="shrink-0 rounded-xl bg-foreground text-background px-4 py-2 text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-1.5 h-9"
-            >
-              <Send className="w-3.5 h-3.5" /> Send
-            </Button>
+                <Button
+                  type="button"
+                  onClick={startRecording}
+                  variant="outline"
+                  className="shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0"
+                  title="Record voice note"
+                >
+                  <Mic className="w-4 h-4" />
+                </Button>
+
+                <Button
+                  type="submit"
+                  disabled={isUploading || (!body.trim() && !imageUrl)}
+                  className="shrink-0 rounded-xl bg-foreground text-background px-4 py-2 text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-1.5 h-9"
+                >
+                  <Send className="w-3.5 h-3.5" /> Send
+                </Button>
+              </>
+            )}
           </form>
         </div>
       </main>
@@ -2376,8 +3152,23 @@ function RouteComponent() {
         currentUser={currentUser}
       />
       <ImageModal
-        imageUrl={selectedImage}
-        onClose={() => setSelectedImage(null)}
+        imageUrl={selectedImageDetails?.url || null}
+        imageIv={selectedImageDetails?.iv || null}
+        aesKey={aesKey}
+        onClose={() => setSelectedImageDetails(null)}
+      />
+      <BackupSetupModal
+        isOpen={isBackupSetupOpen}
+        onClose={() => setIsBackupSetupOpen(false)}
+        onSetup={handleSetupBackup}
+        loading={backupLoading}
+        error={backupError}
+      />
+      <BackupRestoreModal
+        isOpen={isBackupRestoreOpen}
+        onRestore={handleRestoreBackup}
+        loading={backupLoading}
+        error={backupError}
       />
       <FriendsModal
         isOpen={isFriendsOpen}

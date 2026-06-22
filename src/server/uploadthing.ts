@@ -11,12 +11,27 @@ export const uploadRouter = {
     },
   })
     .middleware(async () => {
-      // This runs on server before upload
       return {}
     })
     .onUploadComplete(async ({ file }) => {
-      // This runs on server after upload is successful
       console.log('Upload complete for file:', file.ufsUrl)
+      return { url: file.ufsUrl }
+    }),
+  voiceUploader: f({
+    audio: {
+      maxFileSize: '16MB',
+      maxFileCount: 1,
+    },
+    blob: {
+      maxFileSize: '16MB',
+      maxFileCount: 1,
+    },
+  })
+    .middleware(async () => {
+      return {}
+    })
+    .onUploadComplete(async ({ file }) => {
+      console.log('Voice upload complete for file:', file.ufsUrl)
       return { url: file.ufsUrl }
     }),
 } satisfies FileRouter

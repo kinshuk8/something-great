@@ -5,7 +5,12 @@ import { getAuthUserId } from '@convex-dev/auth/server'
 export const sendMessage = mutation({
   args: {
     body: v.optional(v.string()),
+    bodyIv: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    imageIv: v.optional(v.string()),
+    audioUrl: v.optional(v.string()),
+    audioIv: v.optional(v.string()),
+    audioDuration: v.optional(v.number()),
     chatroomId: v.optional(v.union(v.id('chatrooms'), v.null())),
     replyToId: v.optional(v.id('messages')),
     mentions: v.optional(v.array(v.id('users'))),
@@ -16,15 +21,29 @@ export const sendMessage = mutation({
       throw new Error('Not authenticated')
     }
 
-    if (!args.body && !args.imageUrl) {
-      throw new Error('Message body or image is required')
+    if (!args.body && !args.imageUrl && !args.audioUrl) {
+      throw new Error('Message body, image, or audio is required')
     }
 
     const chatroomId = args.chatroomId ?? null
+    let seen: boolean | undefined = undefined
+
+    if (chatroomId !== null) {
+      const chatroom = await ctx.db.get(chatroomId)
+      if (chatroom?.isDM) {
+        seen = false
+      }
+    }
 
     const messageId = await ctx.db.insert('messages', {
       body: args.body,
+      bodyIv: args.bodyIv,
       imageUrl: args.imageUrl,
+      imageIv: args.imageIv,
+      audioUrl: args.audioUrl,
+      audioIv: args.audioIv,
+      audioDuration: args.audioDuration,
+      seen,
       userId,
       createdAt: Date.now(),
       chatroomId,
@@ -91,15 +110,15 @@ export const getAndCleanOldMessages = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now()
-    const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000
-    const oneDayAgo = now - 24 * 60 * 60 * 1000
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000
 
     const keysToDelete: string[] = []
 
-    // 1. Delete all messages older than 1 week
+    // 1. Delete all messages older than 30 days
     const oldestMessages = await ctx.db
       .query('messages')
-      .withIndex('by_createdAt', (q) => q.lt('createdAt', oneWeekAgo))
+      .withIndex('by_createdAt', (q) => q.lt('createdAt', thirtyDaysAgo))
       .collect()
 
     for (const msg of oldestMessages) {
@@ -111,11 +130,11 @@ export const getAndCleanOldMessages = internalMutation({
       await ctx.db.delete(msg._id)
     }
 
-    // 2. Clear or delete images in messages older than 24 hours (but newer than 1 week)
+    // 2. Clear or delete images in messages older than 7 days (but newer than 30 days)
     const middleMessages = await ctx.db
       .query('messages')
       .withIndex('by_createdAt', (q) =>
-        q.gt('createdAt', oneWeekAgo).lt('createdAt', oneDayAgo),
+        q.gt('createdAt', thirtyDaysAgo).lt('createdAt', sevenDaysAgo),
       )
       .collect()
 
@@ -187,5 +206,36 @@ export const backfillMessages = mutation({
       }
     }
     return count
+  },
+})
+
+export const markMessagesAsSeen = mutation({
+  args: {
+    chatroomId: v.id('chatrooms'),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (userId === null) {
+      throw new Error('Not authenticated')
+    }
+
+    const chatroom = await ctx.db.get(args.chatroomId)
+    if (!chatroom || !chatroom.isDM) {
+      return
+    }
+
+    const messages = await ctx.db
+      .query('messages')
+      .withIndex('by_chatroomId_and_createdAt', (q) =>
+        q.eq('chatroomId', args.chatroomId),
+      )
+      .order('desc')
+      .take(100)
+
+    for (const msg of messages) {
+      if (msg.userId !== userId && !msg.seen) {
+        await ctx.db.patch(msg._id, { seen: true })
+      }
+    }
   },
 })
