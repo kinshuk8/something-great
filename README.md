@@ -1,230 +1,155 @@
-Welcome to your new TanStack Start app!
+# Something Great — End-to-End Encrypted Real-Time Chat App
 
-# Getting Started
+A modern, high-performance, and feature-rich real-time chat application built using **TanStack Start** (Vite + React Router) for the frontend and **Convex** for the real-time serverless backend. 
 
-To run this application:
+Security is a core design principle: all text messages, image attachments, and voice notes are **fully encrypted end-to-end (E2E)** on the client using the Web Crypto API before being transmitted or stored.
+
+---
+
+## Key Features
+
+- 🔒 **End-to-End Encryption (E2E):** Client-side encryption using AES-GCM for message contents and media attachments. Key exchange is performed securely using RSA-OAEP public/private key pairs.
+- 🔑 **Secure Key Backup & Restore:** Optional passphrase-derived backup stored securely on the backend (using PBKDF2 key derivation) to recover chat keys when logging in from new devices.
+- 💬 **Rich Communication Rooms:**
+  - **Global Chat:** Public room open to all users.
+  - **Custom Rooms:** Public or Private rooms (private rooms require room password/owner approval).
+  - **Direct Messages (DMs):** Private one-on-one encrypted rooms with typing and read-receipt indicators.
+- 🎤 **Voice Messages:** Record, send, and listen to voice notes directly in the chat with a customized, responsive media player.
+- 🖼️ **Image Attachments:** Select and upload images securely via **UploadThing** integration.
+- 👾 **GIPHY Integration:** Search and share GIFs instantly using the inline GIPHY picker.
+- ↩️ **Swipe-to-Reply / Mentions:** Swipe any message bubble left to reply, and tag other users using `@username` mentions.
+- 🛠️ **Message Actions (PC & Mobile):**
+  - **PC:** Right-click on any message to trigger options.
+  - **Mobile:** Long-press (500ms hold) to slide up a native-feeling actions drawer.
+  - **Delete Message:** Erases encrypted content from Convex database and purges binary files from UploadThing, leaving a context-specific placeholder (e.g. *"A sound wave was silenced"*).
+  - **Forward Message:** Decrypts the message on-the-fly and re-encrypts it with the target room's key (including file re-uploads) to securely forward text or media.
+- 👥 **Friends & Invitations:** Manage friends, send requests, accept invites, and start instant DMs.
+- 🎨 **Responsive Glassmorphism Styling:** Premium dark-mode UI with smooth micro-animations, mobile-collapsible menus, responsive modals, and dynamic keyboard safe-area adjustments.
+
+---
+
+## Technology Stack
+
+- **Frontend Framework:** [TanStack Start](https://tanstack.com/start) (React + React Router)
+- **Backend Service:** [Convex](https://convex.dev)
+- **Database & Real-time Sync:** Convex Documents
+- **File Storage:** [UploadThing](https://uploadthing.com)
+- **Analytics:** [PostHog](https://posthog.com)
+- **CSS Utility:** Tailwind CSS v4
+- **Package Manager / Runtime:** [Bun](https://bun.sh)
+
+---
+
+## Getting Started & Local Development
+
+### 1. Prerequisites
+
+Ensure you have [Bun](https://bun.sh) installed. You will also need accounts and API credentials for the following services:
+- **Convex Account:** To host the database and backend mutations/queries.
+- **UploadThing Account:** For storing encrypted media files.
+- **PostHog Account:** (Optional) For analytics.
+- **GIPHY Developers Account:** For fetching GIFs.
+
+---
+
+### 2. Environment Setup
+
+Create a `.env.local` file in the root directory and add the following keys:
+
+```env
+# Convex Backend Configuration
+# (Automatically populated if you run "bun convex dev")
+CONVEX_DEPLOYMENT=your_convex_deployment_id
+VITE_CONVEX_URL=https://your_convex_project.convex.cloud
+VITE_CONVEX_SITE_URL=https://your_convex_project.convex.site
+
+# UploadThing Storage Configuration
+# Token can be found in the API Keys tab in your UploadThing Dashboard
+UPLOADTHING_TOKEN=your_uploadthing_token_here
+
+# GIPHY API Configuration
+# Get your API key from https://developers.giphy.com
+VITE_GIPHY_API_KEY=your_giphy_api_key_here
+
+# PostHog Analytics (Optional)
+VITE_POSTHOG_KEY=your_posthog_project_key
+# VITE_POSTHOG_HOST=https://us.i.posthog.com
+```
+
+In the Convex dashboard, make sure you configure your backend environment variables (specifically `UPLOADTHING_TOKEN`) so backend functions can delete media files during message deletion.
+
+---
+
+### 3. Installation & Run
+
+Follow these steps to spin up the application:
+
+1. **Install dependencies:**
+   ```bash
+   bun install
+   ```
+
+2. **Start the Convex backend (Syncs schema and functions in real-time):**
+   ```bash
+   bun convex dev
+   ```
+   *(On first run, this command will prompt you to log into Convex and configure a new dev project).*
+
+3. **Start the local development server (Vite + TanStack Start):**
+   ```bash
+   bun dev
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your web browser.
+
+---
+
+### 4. Running Tests & Quality Checks
+
+- **Run unit tests (Vitest):**
+  ```bash
+  bun run test
+  ```
+- **Lint the codebase:**
+  ```bash
+  bun run lint
+  ```
+- **Format code using Prettier:**
+  ```bash
+  bun run format
+  ```
+
+---
+
+## Production Build & Deployment
+
+### Building Locally
+
+To verify build compilation or build for self-hosting:
 
 ```bash
-bun install
-bun --bun run dev
+bun run build
 ```
 
-# Building For Production
+This compiles client-side bundles under `.output/public` and generates a standalone server application ready to run on Node/Bun.
 
-To build this application for production:
+### Deploying to Railway
 
-```bash
-bun --bun run build
-```
+This project is fully compatible with [Railway](https://railway.com) using the included `nixpacks.toml` configuration:
 
-## Testing
+1. Push this repository to your GitHub account.
+2. Go to **Railway**, create a new project, and select your GitHub repository.
+3. In the project **Variables** tab, add all environment variables defined in `.env.local`.
+4. Railway will automatically build, deploy, and serve the application.
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+---
 
-```bash
-bun --bun run test
-```
+## Cryptography Design (Client-Side E2E)
 
-## Styling
+This application guarantees security through client-side encryption. The backend is "blind" to message content:
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
-
-### Removing Tailwind CSS
-
-If you prefer not to use Tailwind CSS:
-
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `bun install @tailwindcss/vite tailwindcss -D`
-
-## Linting & Formatting
-
-This project uses [eslint](https://eslint.org/) and [prettier](https://prettier.io/) for linting and formatting. Eslint is configured using [tanstack/eslint-config](https://tanstack.com/config/latest/docs/eslint). The following scripts are available:
-
-```bash
-bun --bun run lint
-bun --bun run format
-bun --bun run check
-```
-
-## Deploy to Railway
-
-This project ships with `nixpacks.toml` so Railway detects the build automatically:
-
-1. Push this repo to GitHub
-2. Visit https://railway.com/new and create a project from your repo
-3. In the **Variables** tab, add the entries from `.env.example` with their production values
-4. Railway runs `vite build` and serves from `dist/client`
-
-Need a database? Click **+ New** in your project to provision Postgres, MySQL, or Redis directly into the same environment — the connection string is auto-injected as `DATABASE_URL`.
-
-## Shadcn
-
-Add components using the latest version of [Shadcn](https://ui.shadcn.com/).
-
-```bash
-pnpm dlx shadcn@latest add button
-```
-
-## Setting up PostHog
-
-1. Create a PostHog account at [posthog.com](https://posthog.com)
-2. Get your Project API Key from [Project Settings](https://app.posthog.com/project/settings)
-3. Set `VITE_POSTHOG_KEY` in your `.env.local`
-
-### Optional Configuration
-
-- `VITE_POSTHOG_HOST` - Set this if you're using PostHog Cloud EU (`https://eu.i.posthog.com`) or self-hosting
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from '@tanstack/react-router'
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+1. **User Identity Keys:** On signup/login, the browser generates an **RSA-OAEP Public/Private Key pair**. The public key is stored in the database so other users can encrypt keys for them. The private key is saved in the browser's local IndexedDB.
+2. **Chatroom Symmetric Keys:** Every DM and private room has a unique **AES-GCM (256-bit) symmetric key**.
+3. **Key Exchange:** When joining or starting a chat, the chatroom symmetric key is encrypted using the recipient's RSA public key. Only the recipient's private key can decrypt the symmetric key.
+4. **Message Encryption:** Text body, voice notes, and image data are encrypted in the browser with the room's AES-GCM key and a random Initialization Vector (IV).
+5. **Key Backup:** If enabled, the user derives a secure wrapper key from their passphrase using PBKDF2. The wrapper key encrypts their private RSA key, which is then backed up to the database so they can regain access on other devices.
