@@ -194,6 +194,67 @@ export const deleteImageReference = internalMutation({
   },
 })
 
+export const deleteMessageAndGetFiles = internalMutation({
+  args: {
+    messageId: v.id('messages'),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (userId === null) {
+      throw new Error('Not authenticated')
+    }
+
+    const message = await ctx.db.get(args.messageId)
+    if (!message) {
+      throw new Error('Message not found')
+    }
+
+    if (message.userId !== userId) {
+      throw new Error('Not authorized to delete this message')
+    }
+
+    const keysToDelete: string[] = []
+
+    // Get image key if it is an UploadThing URL
+    if (message.imageUrl) {
+      const isUploadThing =
+        message.imageUrl.includes('utfs.io') ||
+        message.imageUrl.includes('ufs.sh') ||
+        message.imageUrl.includes('uploadthing.com')
+      if (isUploadThing) {
+        const urlParts = message.imageUrl.split('/')
+        const key = urlParts[urlParts.length - 1]
+        if (key) keysToDelete.push(key)
+      }
+    }
+
+    // Get audio key if it exists
+    if (message.audioUrl) {
+      const urlParts = message.audioUrl.split('/')
+      const key = urlParts[urlParts.length - 1]
+      if (key) keysToDelete.push(key)
+    }
+
+    let deletedFormat = 'text'
+    if (message.audioUrl) {
+      deletedFormat = 'voice'
+    } else if (message.imageUrl) {
+      const isGiphy = !message.imageIv || message.imageUrl.includes('giphy.com')
+      deletedFormat = isGiphy ? 'gif' : 'image'
+    }
+
+    await ctx.db.replace(message._id, {
+      userId: message.userId,
+      createdAt: message.createdAt,
+      chatroomId: message.chatroomId,
+      isDeleted: true,
+      deletedFormat,
+    })
+
+    return keysToDelete
+  },
+})
+
 export const backfillMessages = mutation({
   args: {},
   handler: async (ctx) => {

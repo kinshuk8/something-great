@@ -73,3 +73,38 @@ export const deleteImage = action({
     }
   },
 })
+
+export const deleteMessage = action({
+  args: {
+    messageId: v.id('messages'),
+  },
+  handler: async (ctx, args) => {
+    const keys = await ctx.runMutation(
+      internal.messages.deleteMessageAndGetFiles,
+      {
+        messageId: args.messageId,
+      },
+    )
+
+    if (keys.length === 0) {
+      console.log('No file keys found to delete from UploadThing.')
+      return
+    }
+
+    console.log(`Deleting files ${keys.join(', ')} from UploadThing...`)
+
+    const token = process.env.UPLOADTHING_TOKEN
+    if (!token) {
+      console.error('UPLOADTHING_TOKEN env variable is missing on Convex!')
+      return
+    }
+
+    try {
+      const utapi = new UTApi({ token })
+      const response = await utapi.deleteFiles(keys)
+      console.log('UploadThing deletion response:', response)
+    } catch (error) {
+      console.error('Failed to delete files from UploadThing:', error)
+    }
+  },
+})

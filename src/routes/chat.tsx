@@ -18,6 +18,7 @@ import {
   decryptPrivateKeyBackup,
   base64ToArrayBuffer,
   arrayBufferToBase64,
+  decryptFile,
 } from '../lib/crypto'
 import { EncryptedImage } from '#/components/EncryptedImage'
 import { DecryptedText, DecryptedTextInline } from '#/components/DecryptedText'
@@ -25,6 +26,12 @@ import { VoiceMessagePlayer } from '#/components/VoiceMessagePlayer'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '#/components/ui/sheet'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { getAvatar } from '#/lib/avatar'
@@ -53,6 +60,7 @@ import {
   Loader2,
   User,
   Users,
+  Share,
 } from 'lucide-react'
 
 export const Route = createFileRoute('/chat')({
@@ -397,7 +405,7 @@ function ProfileModal({ isOpen, onClose, currentUser }: ProfileModalProps) {
         onClick={onClose}
       />
 
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-full max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-[92vw] sm:w-full sm:max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold">Profile Settings</h2>
           <button
@@ -611,7 +619,7 @@ function BackupSetupModal({
         className="fixed inset-0 bg-background/60 backdrop-blur-md z-40 animate-in fade-in duration-200"
         onClick={onClose}
       />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-full max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-[92vw] sm:w-full sm:max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-bold flex items-center gap-2">
             <Lock className="w-4 h-4 text-primary" /> Setup Key Backup
@@ -709,7 +717,7 @@ function BackupRestoreModal({
   return (
     <>
       <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-45 animate-in fade-in duration-200" />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-full max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-[92vw] sm:w-full sm:max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono">
         <div className="mb-4">
           <h2 className="text-sm font-bold flex items-center gap-2">
             <Lock className="w-4 h-4 text-primary animate-pulse" /> Restore
@@ -842,7 +850,7 @@ function FriendsModal({
         className="fixed inset-0 bg-background/60 backdrop-blur-md z-40 animate-in fade-in duration-200"
         onClick={onClose}
       />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-full max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono flex flex-col h-[480px]">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-[92vw] sm:w-full sm:max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono flex flex-col h-[480px]">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold flex items-center gap-2">
             <Users className="w-5 h-5 text-muted-foreground" /> Friends &
@@ -1090,7 +1098,7 @@ function CreateRoomModal({
         className="fixed inset-0 bg-background/60 backdrop-blur-md z-40 animate-in fade-in duration-200"
         onClick={onClose}
       />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-full max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono max-h-[90vh] overflow-y-auto">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-[92vw] sm:w-full sm:max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold flex items-center gap-2">
             <Plus className="w-5 h-5 text-muted-foreground" /> Create Chatroom
@@ -1266,7 +1274,7 @@ function JoinRoomModal({
         className="fixed inset-0 bg-background/60 backdrop-blur-md z-40 animate-in fade-in duration-200"
         onClick={onClose}
       />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-full max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono h-[420px] flex flex-col">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-[92vw] sm:w-full sm:max-w-md shadow-2xl z-50 animate-in zoom-in-95 fade-in duration-200 font-mono h-[420px] flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold flex items-center gap-2">
             <Search className="w-5 h-5 text-muted-foreground" /> Discover & Join
@@ -1425,7 +1433,7 @@ function UserDetailsModal({
         className="fixed inset-0 bg-background/50 backdrop-blur-sm z-50 animate-in fade-in duration-200"
         onClick={onClose}
       />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-full max-w-xs shadow-2xl z-[60] animate-in zoom-in-95 fade-in duration-200 font-mono text-center">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-border p-6 rounded-2xl w-[92vw] sm:w-full sm:max-w-xs shadow-2xl z-[60] animate-in zoom-in-95 fade-in duration-200 font-mono text-center">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -1513,8 +1521,27 @@ function RouteComponent() {
   )
   const [replyingToMessage, setReplyingToMessage] = useState<any | null>(null)
 
+  // Context Menu and Long Press States
+  const [activeMenuMessage, setActiveMenuMessage] = useState<any | null>(null)
+  const [menuPosition, setMenuPosition] = useState<{
+    x: number
+    y: number
+  } | null>(null)
+
+  // Forwarding Modal States
+  const [forwardMessage, setForwardMessage] = useState<any | null>(null)
+  const [forwardSearch, setForwardSearch] = useState('')
+  const [forwardingState, setForwardingState] = useState<
+    Record<string, 'idle' | 'loading' | 'success' | 'error' | undefined>
+  >({})
+
+  // Refs for tracking long press timer
+  const longPressTimerRef = useRef<any>(null)
+  const isLongPressActiveRef = useRef(false)
+
   // Mobile UI state
   const [mobileShowChat, setMobileShowChat] = useState(true)
+  const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false)
 
   // GIPHY Integration States
   const [isGifPickerOpen, setIsGifPickerOpen] = useState(false)
@@ -1562,6 +1589,7 @@ function RouteComponent() {
   const joinRoom = useMutation(api.chatrooms.joinChatroom)
   const checkOrCreateDM = useMutation(api.chatrooms.checkOrCreateDM)
   const deleteImageAction = useAction(api.cleanup.deleteImage)
+  const deleteMessageAction = useAction(api.cleanup.deleteMessage)
   const markMessagesAsSeen = useMutation(api.messages.markMessagesAsSeen)
 
   // Voice Recording States
@@ -1722,6 +1750,223 @@ function RouteComponent() {
     imageIvRef.current = undefined
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [activeRoomId])
+
+  // Dismiss context menu on click or scroll
+  useEffect(() => {
+    const handleDismiss = () => {
+      setMenuPosition(null)
+      setActiveMenuMessage(null)
+      setIsAttachmentMenuOpen(false)
+    }
+    window.addEventListener('click', handleDismiss)
+    window.addEventListener('scroll', handleDismiss, true)
+    return () => {
+      window.removeEventListener('click', handleDismiss)
+      window.removeEventListener('scroll', handleDismiss, true)
+    }
+  }, [])
+
+  const { startUpload: startForwardImageUpload } =
+    useUploadThing('imageUploader')
+  const { startUpload: startForwardVoiceUpload } =
+    useUploadThing('voiceUploader')
+
+  const deriveKeyForRoom = async (room: any) => {
+    if (!myKeys) throw new Error('No user keys loaded')
+    if (room.isDM) {
+      const otherId = room.memberIds.find((id: any) => id !== currentUser?._id)
+      if (!otherId) throw new Error('Could not find other member in DM')
+      const otherPubKeyJwk = await convex.query(api.keys.getUserPublicKey, {
+        userId: otherId,
+      })
+      if (!otherPubKeyJwk)
+        throw new Error('Other member has not registered public key')
+      const theirPubKey = await importPublicKey(otherPubKeyJwk)
+      const sharedSecret = await deriveSharedSecret(
+        myKeys.privateKey,
+        theirPubKey,
+      )
+      return sharedSecret
+    } else if (room.isPrivate) {
+      const roomKeyRecord = await convex.query(api.keys.getRoomKey, {
+        chatroomId: room._id,
+      })
+      if (!roomKeyRecord) throw new Error('Room key not found')
+      const ownerPubKeyJwk = await convex.query(api.keys.getUserPublicKey, {
+        userId: room.ownerId,
+      })
+      if (!ownerPubKeyJwk)
+        throw new Error('Room owner has not registered public key')
+      const ownerPubKey = await importPublicKey(ownerPubKeyJwk)
+      const sharedSecretWithCreator = await deriveSharedSecret(
+        myKeys.privateKey,
+        ownerPubKey,
+      )
+      const rawKeyBase64 = await decryptText(
+        roomKeyRecord.encryptedKey,
+        roomKeyRecord.iv,
+        sharedSecretWithCreator,
+      )
+      const roomAesKey = await importRawRoomKey(
+        base64ToArrayBuffer(rawKeyBase64),
+      )
+      return roomAesKey
+    } else {
+      return null
+    }
+  }
+
+  const handleForwardMessage = async (msg: any, targetRoom: any) => {
+    setForwardingState((prev) => ({ ...prev, [targetRoom._id]: 'loading' }))
+    try {
+      const sourceAesKey = aesKey
+      const targetAesKey = await deriveKeyForRoom(targetRoom)
+
+      let forwardedBody: string | undefined = undefined
+      let forwardedBodyIv: string | undefined = undefined
+      let forwardedImageUrl: string | undefined = undefined
+      let forwardedImageIv: string | undefined = undefined
+      let forwardedAudioUrl: string | undefined = undefined
+      let forwardedAudioIv: string | undefined = undefined
+      let forwardedAudioDuration: number | undefined = undefined
+
+      if (msg.body) {
+        let plainText = msg.body
+        if (msg.bodyIv && sourceAesKey) {
+          plainText = await decryptText(msg.body, msg.bodyIv, sourceAesKey)
+        }
+        if (targetAesKey) {
+          const enc = await encryptText(plainText, targetAesKey)
+          forwardedBody = enc.ciphertext
+          forwardedBodyIv = enc.iv
+        } else {
+          forwardedBody = plainText
+        }
+      }
+
+      if (msg.imageUrl) {
+        const isGiphy = !msg.imageIv
+        if (isGiphy) {
+          forwardedImageUrl = msg.imageUrl
+        } else {
+          if (!sourceAesKey)
+            throw new Error('Source E2E key is missing for encrypted image')
+          const response = await fetch(msg.imageUrl)
+          if (!response.ok) throw new Error('Failed to fetch source image file')
+          const encryptedBuffer = await response.arrayBuffer()
+          const decryptedBuffer = await decryptFile(
+            encryptedBuffer,
+            msg.imageIv,
+            sourceAesKey,
+          )
+          const fileName = 'forwarded-image.jpg'
+
+          let fileToUpload: File | Blob = new Blob([decryptedBuffer], {
+            type: 'image/jpeg',
+          })
+          if (targetAesKey) {
+            const encrypted = await encryptFile(
+              new File([decryptedBuffer], fileName, { type: 'image/jpeg' }),
+              targetAesKey,
+            )
+            fileToUpload = encrypted.encryptedFile
+            forwardedImageIv = encrypted.iv
+          }
+          const uploadRes = await startForwardImageUpload([
+            fileToUpload as File,
+          ])
+          if (!uploadRes || !uploadRes[0])
+            throw new Error('Image upload failed during forwarding')
+          forwardedImageUrl = uploadRes[0].ufsUrl || uploadRes[0].url
+        }
+      }
+
+      if (msg.audioUrl) {
+        const response = await fetch(msg.audioUrl)
+        if (!response.ok) throw new Error('Failed to fetch source audio file')
+        const encryptedBuffer = await response.arrayBuffer()
+        let decryptedBuffer = encryptedBuffer
+        if (msg.audioIv && sourceAesKey) {
+          decryptedBuffer = await decryptFile(
+            encryptedBuffer,
+            msg.audioIv,
+            sourceAesKey,
+          )
+        }
+        const fileName = `forwarded-voice-${Date.now()}.webm`
+        let fileToUpload: File | Blob = new Blob([decryptedBuffer], {
+          type: 'audio/webm',
+        })
+        if (targetAesKey) {
+          const encrypted = await encryptFile(
+            new File([decryptedBuffer], fileName, { type: 'audio/webm' }),
+            targetAesKey,
+          )
+          fileToUpload = encrypted.encryptedFile
+          forwardedAudioIv = encrypted.iv
+        }
+        const uploadRes = await startForwardVoiceUpload([fileToUpload as File])
+        if (!uploadRes || !uploadRes[0])
+          throw new Error('Audio upload failed during forwarding')
+        forwardedAudioUrl = uploadRes[0].ufsUrl || uploadRes[0].url
+        forwardedAudioDuration = msg.audioDuration
+      }
+
+      await sendMessage({
+        body: forwardedBody,
+        bodyIv: forwardedBodyIv,
+        imageUrl: forwardedImageUrl,
+        imageIv: forwardedImageIv,
+        audioUrl: forwardedAudioUrl,
+        audioIv: forwardedAudioIv,
+        audioDuration: forwardedAudioDuration,
+        chatroomId: targetRoom._id === 'global' ? undefined : targetRoom._id,
+      })
+
+      setForwardingState((prev) => ({ ...prev, [targetRoom._id]: 'success' }))
+      playPingSound()
+      setTimeout(() => {
+        setForwardingState((prev) => {
+          const next = { ...prev }
+          delete next[targetRoom._id]
+          return next
+        })
+      }, 2000)
+    } catch (err) {
+      console.error('Failed to forward message:', err)
+      setForwardingState((prev) => ({ ...prev, [targetRoom._id]: 'error' }))
+    }
+  }
+
+  const handleDeleteFullMessage = async (messageId: Id<'messages'>) => {
+    if (
+      !confirm(
+        'Are you sure you want to delete this message forever? This cannot be undone.',
+      )
+    )
+      return
+    setDeletingMessageIds((prev) => {
+      const next = new Set(prev)
+      next.add(messageId)
+      return next
+    })
+    try {
+      await deleteMessageAction({ messageId })
+      setDeletingMessageIds((prev) => {
+        const next = new Set(prev)
+        next.delete(messageId)
+        return next
+      })
+    } catch (err) {
+      setDeletingMessageIds((prev) => {
+        const next = new Set(prev)
+        next.delete(messageId)
+        return next
+      })
+      console.error('Failed to delete message:', err)
+      alert('Failed to delete message')
+    }
+  }
 
   // Mark messages as seen when room becomes active or new messages arrive (DMs only)
   useEffect(() => {
@@ -1893,6 +2138,11 @@ function RouteComponent() {
 
     try {
       await deleteImageAction({ messageId })
+      setDeletingMessageIds((prev) => {
+        const next = new Set(prev)
+        next.delete(messageId)
+        return next
+      })
     } catch (err) {
       setDeletingMessageIds((prev) => {
         const next = new Set(prev)
@@ -2103,11 +2353,28 @@ function RouteComponent() {
   // ----------------------------------------------------------------------------
   // SWIPE-TO-REPLY TOUCH HANDLERS
   // ----------------------------------------------------------------------------
-  const handleTouchStart = (e: React.TouchEvent, msgId: string) => {
+  const handleTouchStart = (e: React.TouchEvent, msg: any) => {
     const t = e.touches[0]
     touchStartRef.current = { x: t.clientX, y: t.clientY }
-    setSwipingMessageId(msgId)
+    setSwipingMessageId(msg._id)
     setSwipeDistance(0)
+    isLongPressActiveRef.current = false
+
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+    }
+
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressActiveRef.current = true
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (typeof window !== 'undefined' && navigator.vibrate) {
+        try {
+          navigator.vibrate(50)
+        } catch (_) {}
+      }
+      setActiveMenuMessage(msg)
+      setMenuPosition(null)
+    }, 500)
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -2116,6 +2383,13 @@ function RouteComponent() {
     const deltaX = t.clientX - touchStartRef.current.x
     const deltaY = t.clientY - touchStartRef.current.y
 
+    if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current)
+        longPressTimerRef.current = null
+      }
+    }
+
     // Allow swipe if it is primarily horizontal and moving to the right
     if (deltaX > 0 && Math.abs(deltaX) > Math.abs(deltaY) * 0.8) {
       setSwipeDistance(Math.min(deltaX, 80))
@@ -2123,6 +2397,19 @@ function RouteComponent() {
   }
 
   const handleTouchEnd = (msg: any) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+
+    if (isLongPressActiveRef.current) {
+      isLongPressActiveRef.current = false
+      touchStartRef.current = null
+      setSwipingMessageId(null)
+      setSwipeDistance(0)
+      return
+    }
+
     if (swipeDistance > 45) {
       setReplyingToMessage(msg)
       playPingSound()
@@ -2603,29 +2890,41 @@ function RouteComponent() {
         }`}
       >
         {/* Chat Header */}
-        <header className="border-b border-border/80 px-6 py-4 flex items-center justify-between z-20">
-          <div className="flex items-center gap-3">
+        <header className="border-b border-border/80 px-4 py-3 md:px-6 md:py-4 flex items-center justify-between z-20">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setMobileShowChat(false)}
-              className="md:hidden p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+              className="md:hidden p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <div>
-              <h1 className="text-sm font-bold flex items-center gap-1.5">
+            <div className="min-w-0">
+              <h1 className="text-sm font-bold flex items-center gap-1.5 truncate">
                 {activeRoomId === null ? (
-                  <Globe className="w-4 h-4 text-muted-foreground" />
+                  <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
                 ) : (
-                  <MessageCircle className="w-4 h-4 text-muted-foreground" />
+                  <MessageCircle className="w-4 h-4 text-muted-foreground shrink-0" />
                 )}
-                {chatTitle}
+                <span className="truncate">{chatTitle}</span>
+                {activeRoomId !== null && (
+                  <span className="inline-flex md:hidden items-center text-[9px] px-1.5 py-0.5 rounded-full bg-muted border border-border/60 text-muted-foreground font-mono font-medium scale-90 shrink-0">
+                    {activeRoom?.isDM ? (
+                      <Lock className="w-2.5 h-2.5 mr-0.5" />
+                    ) : activeRoom?.isPrivate ? (
+                      <Lock className="w-2.5 h-2.5 mr-0.5" />
+                    ) : (
+                      <Globe className="w-2.5 h-2.5 mr-0.5" />
+                    )}
+                    {activeRoom?.isDM ? 'DM' : activeRoom?.isPrivate ? 'Private' : 'Public'}
+                  </span>
+                )}
               </h1>
-              <p className="text-[10px] text-muted-foreground leading-none">
+              <p className="text-[10px] text-muted-foreground leading-none truncate mt-0.5">
                 {chatDescription}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
+          <div className="hidden md:flex items-center gap-4 text-xs font-mono text-muted-foreground">
             {activeRoomId === null
               ? 'Public Channel'
               : activeRoom?.isPrivate
@@ -2650,13 +2949,24 @@ function RouteComponent() {
                 const isDeletingMessage = isDeleting && !msg.body
                 const isDeletingImage = isDeleting
 
+                const isDeletedMsg = !!msg.isDeleted
                 return (
                   <div
                     key={msg._id}
                     id={`msg-${msg._id}`}
-                    onTouchStart={(e) => handleTouchStart(e, msg._id)}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={() => handleTouchEnd(msg)}
+                    onTouchStart={(e) =>
+                      !isDeletedMsg && handleTouchStart(e, msg)
+                    }
+                    onTouchMove={!isDeletedMsg ? handleTouchMove : undefined}
+                    onTouchEnd={
+                      !isDeletedMsg ? () => handleTouchEnd(msg) : undefined
+                    }
+                    onContextMenu={(e) => {
+                      if (isDeletedMsg) return
+                      e.preventDefault()
+                      setActiveMenuMessage(msg)
+                      setMenuPosition({ x: e.clientX, y: e.clientY })
+                    }}
                     className={`flex items-start gap-2.5 relative group transition-all duration-300 ${isMe ? 'flex-row-reverse' : ''} ${
                       isDeletingMessage
                         ? 'opacity-0 scale-95 max-h-0 py-0 overflow-hidden pointer-events-none'
@@ -2733,71 +3043,90 @@ function RouteComponent() {
                           />
                         </div>
                       )}
-                      {/* Bubble Text */}
-                      {msg.body && (
-                        <DecryptedText
-                          body={msg.body}
-                          bodyIv={msg.bodyIv}
-                          aesKey={aesKey}
-                          isOnlyEmojis={isOnlyEmojis}
-                          renderBodyWithMentions={renderBodyWithMentions}
-                          isMe={!!isMe}
-                        />
-                      )}
-
-                      {/* Bubble Voice Message */}
-                      {msg.audioUrl && (
-                        <VoiceMessagePlayer
-                          audioUrl={msg.audioUrl}
-                          audioIv={msg.audioIv}
-                          audioDuration={msg.audioDuration}
-                          aesKey={aesKey}
-                          isMe={!!isMe}
-                        />
-                      )}
-                      {/* Bubble Image */}
-                      {msg.imageUrl && (
+                      {msg.isDeleted ? (
                         <div
-                          className={`relative group mt-1 max-w-xs rounded-xl overflow-hidden border border-border bg-card transition-all duration-300 ${
-                            isDeletingImage ? 'opacity-0 scale-95' : ''
-                          }`}
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-xs italic text-muted-foreground bg-muted/20 border-dashed border-border/80 select-none ${isMe ? 'rounded-tr-none' : 'rounded-tl-none'}`}
                         >
-                          <div
-                            onClick={() =>
-                              setSelectedImageDetails({
-                                url: msg.imageUrl!,
-                                iv: msg.imageIv,
-                              })
-                            }
-                            className="cursor-zoom-in hover:opacity-95 transition-opacity"
-                          >
-                            {msg.imageIv && aesKey ? (
-                              <EncryptedImage
-                                imageUrl={msg.imageUrl}
-                                imageIv={msg.imageIv}
-                                aesKey={aesKey}
-                                alt="Uploaded chat image"
-                                className="w-full h-auto max-h-56 object-cover"
-                              />
-                            ) : (
-                              <img
-                                src={msg.imageUrl}
-                                alt="Uploaded chat image"
-                                className="w-full h-auto max-h-56 object-cover"
-                              />
-                            )}
-                          </div>
-                          {isMe && !isDeletingImage && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteImage(msg._id)}
-                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-black/60 hover:bg-destructive text-white rounded-lg p-1.5 transition-all cursor-pointer shadow-md"
-                              title="Delete image forever"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          <Trash2 className="w-3.5 h-3.5 opacity-60 shrink-0" />
+                          <span>
+                            {msg.deletedFormat === 'voice'
+                              ? 'A sound wave was silenced'
+                              : msg.deletedFormat === 'image'
+                                ? 'Visual memory collapsed into a black hole'
+                                : msg.deletedFormat === 'gif'
+                                  ? 'GIF vanished into pixels'
+                                  : 'A thought was lost to the void'}
+                          </span>
                         </div>
+                      ) : (
+                        <>
+                          {/* Bubble Text */}
+                          {msg.body && (
+                            <DecryptedText
+                              body={msg.body}
+                              bodyIv={msg.bodyIv}
+                              aesKey={aesKey}
+                              isOnlyEmojis={isOnlyEmojis}
+                              renderBodyWithMentions={renderBodyWithMentions}
+                              isMe={!!isMe}
+                            />
+                          )}
+
+                          {/* Bubble Voice Message */}
+                          {msg.audioUrl && (
+                            <VoiceMessagePlayer
+                              audioUrl={msg.audioUrl}
+                              audioIv={msg.audioIv}
+                              audioDuration={msg.audioDuration}
+                              aesKey={aesKey}
+                              isMe={!!isMe}
+                            />
+                          )}
+                          {/* Bubble Image */}
+                          {msg.imageUrl && (
+                            <div
+                              className={`relative group mt-1 max-w-xs rounded-xl overflow-hidden border border-border bg-card transition-all duration-300 ${
+                                isDeletingImage ? 'opacity-0 scale-95' : ''
+                              }`}
+                            >
+                              <div
+                                onClick={() =>
+                                  setSelectedImageDetails({
+                                    url: msg.imageUrl!,
+                                    iv: msg.imageIv,
+                                  })
+                                }
+                                className="cursor-zoom-in hover:opacity-95 transition-opacity"
+                              >
+                                {msg.imageIv && aesKey ? (
+                                  <EncryptedImage
+                                    imageUrl={msg.imageUrl}
+                                    imageIv={msg.imageIv}
+                                    aesKey={aesKey}
+                                    alt="Uploaded chat image"
+                                    className="w-full h-auto max-h-56 object-cover"
+                                  />
+                                ) : (
+                                  <img
+                                    src={msg.imageUrl}
+                                    alt="Uploaded chat image"
+                                    className="w-full h-auto max-h-56 object-cover"
+                                  />
+                                )}
+                              </div>
+                              {isMe && !isDeletingImage && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteImage(msg._id)}
+                                  className="hidden md:block absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-black/60 hover:bg-destructive text-white rounded-lg p-1.5 transition-all cursor-pointer shadow-md"
+                                  title="Delete image forever"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </>
                       )}
 
                       {/* Expired Image Placeholder */}
@@ -2829,15 +3158,17 @@ function RouteComponent() {
                     </div>
 
                     {/* Hover Reply Button (Desktop) */}
-                    <button
-                      onClick={() => setReplyingToMessage(msg)}
-                      className={`hidden md:block opacity-0 group-hover:opacity-100 transition-opacity absolute top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-muted border border-border text-muted-foreground hover:text-foreground cursor-pointer shadow-sm ${
-                        isMe ? '-left-8' : '-right-8'
-                      }`}
-                      title="Reply"
-                    >
-                      <CornerUpLeft className="w-3.5 h-3.5" />
-                    </button>
+                    {!msg.isDeleted && (
+                      <button
+                        onClick={() => setReplyingToMessage(msg)}
+                        className={`hidden md:block opacity-0 group-hover:opacity-100 transition-opacity absolute top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-muted border border-border text-muted-foreground hover:text-foreground cursor-pointer shadow-sm ${
+                          isMe ? '-left-8' : '-right-8'
+                        }`}
+                        title="Reply"
+                      >
+                        <CornerUpLeft className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 )
               })
@@ -2847,11 +3178,11 @@ function RouteComponent() {
         </div>
 
         {/* Input Form Area */}
-        <div className="border-t border-border/80 p-4">
+        <div className="border-t border-border/80 p-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:p-4">
           {/* File Upload Preview Panel */}
           {localPreview && (
-            <div className="max-w-3xl mx-auto mb-3 flex items-center gap-3 p-3 rounded-xl border border-border bg-card shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200">
-              <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-border shrink-0 bg-muted">
+            <div className="max-w-3xl mx-auto mb-2 md:mb-3 flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-xl border border-border bg-card shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-lg overflow-hidden border border-border shrink-0 bg-muted">
                 <img
                   src={localPreview}
                   alt="Upload preview"
@@ -2923,7 +3254,7 @@ function RouteComponent() {
           {/* Core Send Form */}
           <form
             onSubmit={handleSend}
-            className="max-w-3xl mx-auto flex items-center gap-2 relative"
+            className="max-w-3xl mx-auto flex items-center gap-1.5 md:gap-2 relative"
           >
             <input
               type="file"
@@ -2965,7 +3296,7 @@ function RouteComponent() {
 
             {/* GIPHY GIF Picker Popover */}
             {isGifPickerOpen && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-card shadow-2xl p-3 z-30 font-mono text-xs max-h-72 overflow-hidden flex flex-col gap-2 animate-in slide-in-from-bottom-2 duration-150">
+              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-card shadow-2xl p-3 z-30 font-mono text-xs max-h-48 md:max-h-72 overflow-hidden flex flex-col gap-2 animate-in slide-in-from-bottom-2 duration-150">
                 <div className="flex items-center justify-between border-b border-border/60 pb-1.5">
                   <span className="font-bold text-muted-foreground uppercase text-[10px]">
                     Search GIPHY
@@ -3039,74 +3370,137 @@ function RouteComponent() {
               </div>
             )}
 
-            {!isRecording && (
+            {!isRecording && !localPreview && (
               <>
-                <Button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                  variant="outline"
-                  className="shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0"
-                  title="Upload image"
-                >
-                  {isUploading ? (
-                    <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Plus className="w-4 h-4" />
-                  )}
-                </Button>
+                {/* Desktop attachment buttons */}
+                <div className="hidden md:flex items-center gap-1.5 shrink-0">
+                  <Button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    variant="outline"
+                    className="shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0"
+                    title="Upload image"
+                  >
+                    {isUploading ? (
+                      <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4" />
+                    )}
+                  </Button>
 
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setIsGifPickerOpen(!isGifPickerOpen)
-                  }}
-                  variant="outline"
-                  className={`shrink-0 rounded-xl border-border/80 cursor-pointer h-9 px-2 text-xs font-bold font-sans transition-all flex items-center justify-center ${
-                    isGifPickerOpen
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-card text-muted-foreground hover:text-foreground'
-                  }`}
-                  title="Find and share GIF"
-                >
-                  GIF
-                </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setIsGifPickerOpen(!isGifPickerOpen)
+                    }}
+                    variant="outline"
+                    className={`shrink-0 rounded-xl border-border/80 cursor-pointer h-9 px-2 text-xs font-bold font-sans transition-all flex items-center justify-center ${
+                      isGifPickerOpen
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-card text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Find and share GIF"
+                  >
+                    GIF
+                  </Button>
+                </div>
+
+                {/* Mobile collapsible attachment menu */}
+                <div className="md:hidden relative shrink-0">
+                  <Button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIsAttachmentMenuOpen(!isAttachmentMenuOpen)
+                    }}
+                    variant="outline"
+                    className={`shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0 ${
+                      isAttachmentMenuOpen ? 'bg-muted/80' : ''
+                    }`}
+                    title="Attachments"
+                  >
+                    <Plus
+                      className={`w-4 h-4 transition-transform duration-200 ${isAttachmentMenuOpen ? 'rotate-45 text-destructive' : ''}`}
+                    />
+                  </Button>
+
+                  {isAttachmentMenuOpen && (
+                    <div
+                      className="absolute bottom-full left-0 mb-2 bg-card border border-border rounded-xl shadow-2xl p-1.5 z-30 flex flex-col min-w-[130px] animate-in fade-in slide-in-from-bottom-2 duration-150 font-sans"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          fileInputRef.current?.click()
+                          setIsAttachmentMenuOpen(false)
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs transition-colors flex items-center gap-2 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="font-medium text-foreground">
+                          Upload Photo
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsGifPickerOpen(true)
+                          setIsAttachmentMenuOpen(false)
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs transition-colors flex items-center gap-2 cursor-pointer"
+                      >
+                        <span className="font-bold text-[9px] text-muted-foreground border border-border px-1 py-0.5 rounded shrink-0">
+                          GIF
+                        </span>
+                        <span className="font-medium text-foreground">
+                          Search GIFs
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
             {isRecording ? (
-              <div className="flex-1 flex items-center justify-between bg-muted/40 border border-border/60 rounded-xl h-9 px-3 font-mono text-xs animate-in fade-in duration-200">
-                <div className="flex items-center gap-2">
+              <div className="flex-1 flex items-center justify-between bg-muted/40 border border-border/60 rounded-xl h-9 px-2 md:px-3 font-mono text-[10px] md:text-xs animate-in fade-in duration-200 min-w-0">
+                <div className="flex items-center gap-1 md:gap-2 min-w-0 truncate">
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-                  <span className="text-muted-foreground font-bold">
+                  <span className="text-muted-foreground font-bold hidden md:inline">
                     Recording Voice Note:
                   </span>
-                  <span className="font-semibold">
+                  <span className="text-muted-foreground font-bold md:hidden">
+                    Rec:
+                  </span>
+                  <span className="font-semibold shrink-0">
                     {Math.floor(recordingDuration / 60)}:
                     {(recordingDuration % 60).toString().padStart(2, '0')}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 shrink-0">
                   <Button
                     type="button"
                     variant="ghost"
                     onClick={cancelRecording}
-                    className="h-7 px-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer flex items-center gap-1"
+                    className="h-7 px-1.5 md:px-2.5 text-[10px] md:text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer flex items-center gap-1"
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> Discard
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Discard</span>
                   </Button>
                   <Button
                     type="button"
                     onClick={stopRecording}
                     disabled={isUploadingVoice}
-                    className="h-7 px-3 text-xs bg-foreground text-background hover:opacity-90 rounded-lg cursor-pointer flex items-center gap-1.5"
+                    className="h-7 px-2 md:px-3 text-[10px] md:text-xs bg-foreground text-background hover:opacity-90 rounded-lg cursor-pointer flex items-center gap-1"
                   >
                     {isUploadingVoice ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
                       <Send className="w-3.5 h-3.5 fill-current" />
                     )}
-                    Send
+                    <span className="hidden sm:inline">Send</span>
                   </Button>
                 </div>
               </div>
@@ -3117,26 +3511,29 @@ function RouteComponent() {
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   placeholder="Type message (@username to tag)..."
-                  className="flex-1 rounded-xl bg-card border-border/80 h-9 px-4 py-2 font-mono text-xs focus:ring-1 focus:ring-ring"
+                  className="flex-1 rounded-xl bg-card border-border/80 h-9 px-3 py-2 text-sm md:text-xs focus:ring-1 focus:ring-ring min-w-0"
                 />
 
-                <Button
-                  type="button"
-                  onClick={startRecording}
-                  variant="outline"
-                  className="shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0"
-                  title="Record voice note"
-                >
-                  <Mic className="w-4 h-4" />
-                </Button>
-
-                <Button
-                  type="submit"
-                  disabled={isUploading || (!body.trim() && !imageUrl)}
-                  className="shrink-0 rounded-xl bg-foreground text-background px-4 py-2 text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-1.5 h-9"
-                >
-                  <Send className="w-3.5 h-3.5" /> Send
-                </Button>
+                {body.trim() || imageUrl ? (
+                  <Button
+                    type="submit"
+                    disabled={isUploading}
+                    className="shrink-0 rounded-xl bg-foreground text-background text-xs font-bold hover:opacity-90 transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 h-9 w-9 md:w-auto p-0 md:px-4 md:py-2 animate-in scale-in"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span className="hidden md:inline">Send</span>
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={startRecording}
+                    variant="outline"
+                    className="shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0 animate-in scale-in"
+                    title="Record voice note"
+                  >
+                    <Mic className="w-4 h-4" />
+                  </Button>
+                )}
               </>
             )}
           </form>
@@ -3204,6 +3601,214 @@ function RouteComponent() {
         sentRequests={sentRequests || []}
         currentUser={currentUser}
       />
+
+      {/* Floating Context Menu (PC) */}
+      {menuPosition && activeMenuMessage && (
+        <div
+          className="fixed z-50 min-w-[150px] rounded-xl border border-border bg-popover text-popover-foreground shadow-xl p-1 animate-in fade-in zoom-in-95 duration-100 font-sans"
+          style={{ top: menuPosition.y, left: menuPosition.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              setForwardMessage(activeMenuMessage)
+              setMenuPosition(null)
+              setActiveMenuMessage(null)
+            }}
+            className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs transition-colors cursor-pointer flex items-center gap-2"
+          >
+            <Share className="w-3.5 h-3.5 text-muted-foreground" />
+            <span>Forward</span>
+          </button>
+          {currentUser && activeMenuMessage.userId === currentUser._id && (
+            <button
+              onClick={() => {
+                handleDeleteFullMessage(activeMenuMessage._id)
+                setMenuPosition(null)
+                setActiveMenuMessage(null)
+              }}
+              className="w-full text-left px-3 py-2 rounded-lg hover:bg-destructive/15 text-destructive text-xs transition-colors cursor-pointer flex items-center gap-2"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Bottom Sheet for Message Actions (Mobile) */}
+      <Sheet
+        open={activeMenuMessage !== null && menuPosition === null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActiveMenuMessage(null)
+          }
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          className="rounded-t-2xl max-w-lg mx-auto p-4 pb-6 font-sans"
+        >
+          <SheetHeader className="text-left pb-2 border-b border-border/60">
+            <SheetTitle className="text-xs text-muted-foreground uppercase tracking-wider">
+              Message Actions
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-col gap-1 mt-2">
+            <button
+              onClick={() => {
+                setForwardMessage(activeMenuMessage)
+                setActiveMenuMessage(null)
+              }}
+              className="w-full text-left px-4 py-3.5 rounded-xl hover:bg-muted text-sm transition-colors cursor-pointer flex items-center gap-3 active:bg-muted/80"
+            >
+              <Share className="w-4 h-4 text-muted-foreground" />
+              <span className="font-medium">Forward Message</span>
+            </button>
+
+            {currentUser &&
+              activeMenuMessage &&
+              activeMenuMessage.userId === currentUser._id && (
+                <button
+                  onClick={() => {
+                    handleDeleteFullMessage(activeMenuMessage._id)
+                    setActiveMenuMessage(null)
+                  }}
+                  className="w-full text-left px-4 py-3.5 rounded-xl hover:bg-destructive/10 text-destructive text-sm transition-colors cursor-pointer flex items-center gap-3 active:bg-destructive/15"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="font-medium">Delete Message</span>
+                </button>
+              )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Forward Modal */}
+      {forwardMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4 font-sans animate-in fade-in duration-200">
+          <div className="bg-background border border-border w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-border/60 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm">Forward Message</h3>
+                <p className="text-[10px] text-muted-foreground">
+                  Select a chat or friend to forward to
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setForwardMessage(null)
+                  setForwardSearch('')
+                  setForwardingState({})
+                }}
+                className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="p-3 border-b border-border/40">
+              <Input
+                value={forwardSearch}
+                onChange={(e) => setForwardSearch(e.target.value)}
+                placeholder="Search chats or friends..."
+                className="h-8 rounded-lg text-xs bg-muted/40"
+              />
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {[
+                {
+                  _id: 'global',
+                  name: 'Global Chat',
+                  isDM: false,
+                  isPrivate: false,
+                },
+                ...(chatrooms || []),
+              ]
+                .filter((r: any) =>
+                  r.name.toLowerCase().includes(forwardSearch.toLowerCase()),
+                )
+                .map((room: any) => {
+                  const state = forwardingState[room._id] || 'idle'
+
+                  return (
+                    <div
+                      key={room._id}
+                      className="flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/40 transition-colors border border-transparent"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {room._id === 'global' ? (
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                            <Globe className="w-4 h-4 text-primary" />
+                          </div>
+                        ) : room.isDM ? (
+                          <img
+                            src={
+                              room.otherUser?.image ||
+                              getAvatar(room.otherUser?.avatarSeed || 'default')
+                            }
+                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-border/60"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0 border border-border/60">
+                            <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="truncate min-w-0">
+                          <p className="text-xs font-semibold leading-none truncate">
+                            {room.name}
+                          </p>
+                          <span className="text-[9px] text-muted-foreground leading-none">
+                            {room._id === 'global'
+                              ? 'Public Channel'
+                              : room.isDM
+                                ? 'Direct Message'
+                                : room.isPrivate
+                                  ? 'Private Room'
+                                  : 'Public Room'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        disabled={state === 'loading' || state === 'success'}
+                        onClick={() =>
+                          handleForwardMessage(forwardMessage, room)
+                        }
+                        className={`text-[10px] font-bold h-7 px-3 rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                          state === 'loading'
+                            ? 'bg-muted text-muted-foreground cursor-wait'
+                            : state === 'success'
+                              ? 'bg-green-500/10 text-green-500 font-bold border border-green-500/20'
+                              : state === 'error'
+                                ? 'bg-red-500/10 text-red-500 border border-red-500/20'
+                                : 'bg-primary text-primary-foreground hover:opacity-90'
+                        }`}
+                      >
+                        {state === 'loading' ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : state === 'success' ? (
+                          <>
+                            <Check className="w-3 h-3" />
+                            <span>Sent</span>
+                          </>
+                        ) : state === 'error' ? (
+                          <span>Failed</span>
+                        ) : (
+                          <span>Send</span>
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

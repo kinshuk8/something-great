@@ -8,33 +8,33 @@
  * @module
  */
 
-import type * as auth from '../auth.js'
-import type * as chatrooms from '../chatrooms.js'
-import type * as cleanup from '../cleanup.js'
-import type * as crons from '../crons.js'
-import type * as friends from '../friends.js'
-import type * as http from '../http.js'
-import type * as keys from '../keys.js'
-import type * as messages from '../messages.js'
-import type * as users from '../users.js'
+import type * as auth from "../auth.js";
+import type * as chatrooms from "../chatrooms.js";
+import type * as cleanup from "../cleanup.js";
+import type * as crons from "../crons.js";
+import type * as friends from "../friends.js";
+import type * as http from "../http.js";
+import type * as keys from "../keys.js";
+import type * as messages from "../messages.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
-} from 'convex/server'
+} from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  auth: typeof auth
-  chatrooms: typeof chatrooms
-  cleanup: typeof cleanup
-  crons: typeof crons
-  friends: typeof friends
-  http: typeof http
-  keys: typeof keys
-  messages: typeof messages
-  users: typeof users
-}>
+  auth: typeof auth;
+  chatrooms: typeof chatrooms;
+  cleanup: typeof cleanup;
+  crons: typeof crons;
+  friends: typeof friends;
+  http: typeof http;
+  keys: typeof keys;
+  messages: typeof messages;
+  users: typeof users;
+}>;
 
 /**
  * A utility for referencing Convex functions in your app's public API.
@@ -46,8 +46,8 @@ declare const fullApi: ApiFromModules<{
  */
 export declare const api: FilterApi<
   typeof fullApi,
-  FunctionReference<any, 'public'>
->
+  FunctionReference<any, "public">
+>;
 
 /**
  * A utility for referencing Convex functions in your app's internal API.
@@ -59,7 +59,7 @@ export declare const api: FilterApi<
  */
 export declare const internal: FilterApi<
   typeof fullApi,
-  FunctionReference<any, 'internal'>
->
+  FunctionReference<any, "internal">
+>;
 
-export declare const components: {}
+export declare const components: {};

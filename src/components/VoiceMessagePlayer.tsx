@@ -154,7 +154,7 @@ export function VoiceMessagePlayer({
   if (loading) {
     return (
       <div
-        className={`flex items-center gap-4 px-4.5 py-3.5 rounded-2xl w-76 max-w-full border ${
+        className={`flex items-center gap-4 px-4.5 py-3.5 rounded-2xl w-full max-w-[270px] sm:max-w-[320px] border ${
           isMe
             ? 'bg-foreground/5 border-foreground/10 text-foreground'
             : 'bg-card text-foreground border-border/80'
@@ -171,7 +171,7 @@ export function VoiceMessagePlayer({
 
   return (
     <div
-      className={`flex items-center gap-4 px-4.5 py-3.5 rounded-2xl w-76 max-w-full select-none ${
+      className={`flex items-center gap-4 px-4.5 py-3.5 rounded-2xl w-full max-w-[270px] sm:max-w-[320px] select-none ${
         isMe
           ? 'bg-foreground text-background rounded-tr-none'
           : 'bg-card text-foreground border border-border/80 rounded-tl-none'
