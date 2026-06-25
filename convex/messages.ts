@@ -127,9 +127,9 @@ export const getExploreMessages = query({
       .order('desc')
       .take(500)
 
-    // Filter to only include messages with imageUrl, not deleted, not expired, and accessible to user
+    // Filter to only include messages with imageUrl, an imageIv (excluding unencrypted GIFs), not deleted, not expired, and accessible to user
     const imageMessages = rawMessages.filter((msg) => {
-      if (!msg.imageUrl || msg.isDeleted || msg.imageDeletedReason === 'expired') {
+      if (!msg.imageUrl || !msg.imageIv || msg.isDeleted || msg.imageDeletedReason === 'expired') {
         return false
       }
       // Accessible if global chat (chatroomId is null or undefined) OR if user is member of chatroom

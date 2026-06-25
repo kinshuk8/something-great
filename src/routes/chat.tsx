@@ -43,6 +43,7 @@ import {
   Globe,
   Lock,
   Plus,
+  Camera,
   Search,
   MessageSquare,
   Send,
@@ -719,7 +720,7 @@ function ExploreImage({
   return (
     <div
       className="relative group rounded-xl overflow-hidden border border-border bg-card cursor-zoom-in hover:border-primary/30 transition-all duration-200 shadow-sm hover:shadow-md"
-      onClick={() => onImageClick(msg.imageUrl!, msg.imageIv)}
+      onClick={() => onImageClick(msg.imageUrl, msg.imageIv)}
     >
       {isEncrypted ? (
         aesKey ? (
@@ -766,7 +767,7 @@ function ExploreView({
   onGoBack,
 }: ExploreViewProps) {
   const imageMessages = (exploreMessages ?? []).filter(
-    (m) => m.imageUrl && !m.isDeleted && m.imageDeletedReason !== 'expired',
+    (m) => m.imageUrl && m.imageIv && !m.isDeleted && m.imageDeletedReason !== 'expired',
   )
 
   return (
@@ -1853,12 +1854,132 @@ function ChatInner() {
   const [isSearchingGifs, setIsSearchingGifs] = useState(false)
   const [gifError, setGifError] = useState<string | null>(null)
 
+  // Camera Modal States
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
+
+  useEffect(() => {
+    let active = true
+    if (!isCameraModalOpen) {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop())
+        setCameraStream(null)
+      }
+      return
+    }
+
+    const startWebcam = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user',
+          },
+          audio: false,
+        })
+        if (!active) {
+          stream.getTracks().forEach((track) => track.stop())
+          return
+        }
+        setCameraStream(stream)
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+        }
+      } catch (err) {
+        console.error('Error starting webcam:', err)
+        showAlert({
+          title: 'Camera Access Error',
+          description: 'Could not access your webcam. Please check permissions.',
+        })
+        setIsCameraModalOpen(false)
+      }
+    }
+
+    startWebcam()
+    return () => {
+      active = false
+    }
+  }, [isCameraModalOpen])
+
+  const capturePhoto = () => {
+    const video = videoRef.current
+    if (!video || !cameraStream) return
+
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth || 640
+    canvas.height = video.videoHeight || 480
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // Mirror image for canvas if front camera
+    ctx.translate(canvas.width, 0)
+    ctx.scale(-1, 1)
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+
+    canvas.toBlob(
+      async (blob) => {
+        if (!blob) return
+        const file = new File([blob], `camera-${Date.now()}.jpg`, {
+          type: 'image/jpeg',
+        })
+
+        // Close camera
+        setIsCameraModalOpen(false)
+        cameraStream.getTracks().forEach((track) => track.stop())
+        setCameraStream(null)
+
+        if (file.size > 15 * 1024 * 1024) {
+          showAlert({
+            title: 'File Too Large',
+            description: 'Currently the file size is limited to 15MB.',
+          })
+          return
+        }
+
+        setLocalPreview(URL.createObjectURL(file))
+        setUploadProgress(0)
+        try {
+          let fileToUpload = file
+          if (aesKey) {
+            const encrypted = await encryptFile(file, aesKey)
+            fileToUpload = encrypted.encryptedFile
+            imageIvRef.current = encrypted.iv
+          } else {
+            imageIvRef.current = undefined
+          }
+          await startUpload([fileToUpload])
+        } catch (err) {
+          console.error('Failed to upload camera capture:', err)
+          showAlert({
+            title: 'Upload Error',
+            description: 'Failed to upload captured photo.',
+          })
+        }
+      },
+      'image/jpeg',
+      0.95,
+    )
+  }
+
+  const handleCameraClick = () => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    if (isMobile) {
+      cameraInputRef.current?.click()
+    } else {
+      setIsCameraModalOpen(true)
+    }
+  }
+
   // Refs for tracking drag swipe and scroll
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const [swipingMessageId, setSwipingMessageId] = useState<string | null>(null)
   const [swipeDistance, setSwipeDistance] = useState<number>(0)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const prevMessageCountRef = useRef<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -2053,6 +2174,7 @@ function ChatInner() {
     setLocalPreview(null)
     imageIvRef.current = undefined
     if (fileInputRef.current) fileInputRef.current.value = ''
+    if (cameraInputRef.current) cameraInputRef.current.value = ''
   }, [activeRoomId])
 
   // Dismiss context menu on click or scroll
@@ -2512,6 +2634,15 @@ function ChatInner() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (file.size > 15 * 1024 * 1024) {
+      showAlert({
+        title: 'File Too Large',
+        description: 'Currently the file size is limited to 15MB.',
+      })
+      e.target.value = ''
+      return
+    }
+
     setLocalPreview(URL.createObjectURL(file))
     setUploadProgress(0)
     try {
@@ -2534,6 +2665,7 @@ function ChatInner() {
     setLocalPreview(null)
     imageIvRef.current = undefined
     if (fileInputRef.current) fileInputRef.current.value = ''
+    if (cameraInputRef.current) cameraInputRef.current.value = ''
   }
 
   const startRecording = async () => {
@@ -2833,6 +2965,7 @@ function ChatInner() {
     setReplyingToMessage(null)
     imageIvRef.current = undefined
     if (fileInputRef.current) fileInputRef.current.value = ''
+    if (cameraInputRef.current) cameraInputRef.current.value = ''
   }
 
   const handleCreateRoom = async (
@@ -3603,6 +3736,14 @@ function ChatInner() {
               accept="image/*"
               className="hidden"
             />
+            <input
+              type="file"
+              ref={cameraInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+            />
 
             {/* Mention Suggestions Popover */}
             {filteredUsers.length > 0 && (
@@ -3636,9 +3777,9 @@ function ChatInner() {
 
             {/* GIPHY GIF Picker Popover */}
             {isGifPickerOpen && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-card shadow-2xl p-3 z-30 font-mono text-xs max-h-48 md:max-h-72 overflow-hidden flex flex-col gap-2 animate-in slide-in-from-bottom-2 duration-150">
-                <div className="flex items-center justify-between border-b border-border/60 pb-1.5">
-                  <span className="font-bold text-muted-foreground uppercase text-[10px]">
+              <div className="absolute bottom-full left-0 mb-2 rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-2xl p-4 z-30 font-sans text-xs w-full sm:w-[400px] h-[360px] sm:h-[420px] max-h-[60vh] overflow-hidden flex flex-col gap-3 animate-in slide-in-from-bottom-2 duration-150">
+                <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                  <span className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">
                     Search GIPHY
                   </span>
                   <button
@@ -3647,9 +3788,9 @@ function ChatInner() {
                       setIsGifPickerOpen(false)
                       setGifSearchQuery('')
                     }}
-                    className="text-muted-foreground hover:text-destructive cursor-pointer"
+                    className="text-muted-foreground hover:text-destructive cursor-pointer p-1 rounded-lg hover:bg-muted/80 transition-colors"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
@@ -3658,27 +3799,27 @@ function ChatInner() {
                   onChange={(e) => setGifSearchQuery(e.target.value)}
                   placeholder="Search GIFs..."
                   autoFocus
-                  className="h-8 rounded-lg text-xs bg-muted/45"
+                  className="h-9 rounded-xl text-xs bg-muted/40 border-border/80 focus-visible:ring-1 focus-visible:ring-primary/50 px-3"
                 />
 
-                <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="flex-1 overflow-y-auto min-h-0 pr-1 scrollbar-thin">
                   {gifError ? (
-                    <div className="text-center py-6 text-red-400 text-[10px]">
+                    <div className="text-center py-10 text-destructive text-[11px]">
                       {gifError}
                     </div>
                   ) : isSearchingGifs ? (
-                    <div className="flex items-center justify-center py-10 gap-2">
-                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      <span className="text-[10px] text-muted-foreground">
-                        Searching...
+                    <div className="flex flex-col items-center justify-center py-16 gap-3">
+                      <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <span className="text-[11px] text-muted-foreground">
+                        Searching GIPHY...
                       </span>
                     </div>
                   ) : gifs.length === 0 ? (
-                    <div className="text-center py-10 text-muted-foreground text-[10px]">
+                    <div className="text-center py-16 text-muted-foreground text-[11px]">
                       {gifSearchQuery ? 'No GIFs found' : 'No trending GIFs'}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-3 gap-2">
                       {gifs.map((gif) => {
                         const thumbnailUrl =
                           gif.images.fixed_height_downsampled?.url ||
@@ -3693,7 +3834,7 @@ function ChatInner() {
                               setIsGifPickerOpen(false)
                               setGifSearchQuery('')
                             }}
-                            className="aspect-[4/3] rounded-lg overflow-hidden border border-border/40 bg-muted hover:border-primary/50 cursor-pointer transition-all hover:scale-[1.02]"
+                            className="aspect-[4/3] rounded-lg overflow-hidden border border-border/40 bg-muted hover:border-primary/50 cursor-pointer transition-all hover:scale-[1.02] shadow-sm active:scale-95"
                           >
                             <img
                               src={thumbnailUrl}
@@ -3726,6 +3867,21 @@ function ChatInner() {
                       <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <Plus className="w-4 h-4" />
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={handleCameraClick}
+                    disabled={isUploading}
+                    variant="outline"
+                    className="shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0"
+                    title="Take photo with camera"
+                  >
+                    {isUploading ? (
+                      <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4" />
                     )}
                   </Button>
 
@@ -3781,6 +3937,19 @@ function ChatInner() {
                         <Plus className="w-3.5 h-3.5 text-muted-foreground" />
                         <span className="font-medium text-foreground">
                           Upload Photo
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleCameraClick()
+                          setIsAttachmentMenuOpen(false)
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs transition-colors flex items-center gap-2 cursor-pointer"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="font-medium text-foreground">
+                          Take Photo
                         </span>
                       </button>
                       <button
@@ -4147,6 +4316,65 @@ function ChatInner() {
                     </div>
                   )
                 })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Web Camera Modal (Desktop) */}
+      {isCameraModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border/80 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <Camera className="w-4 h-4 text-primary" />
+                <span className="font-sans font-bold text-xs">Camera Preview</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCameraModalOpen(false)}
+                className="text-muted-foreground hover:text-destructive cursor-pointer p-1 rounded-lg hover:bg-muted"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Video preview container */}
+            <div className="relative flex-1 bg-black aspect-video flex items-center justify-center overflow-hidden">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover scale-x-[-1]"
+              />
+              {!cameraStream && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80">
+                  <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                  <span className="text-[10px] text-muted-foreground font-mono">Initializing camera...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Controls */}
+            <div className="p-4 border-t border-border/60 flex items-center justify-center gap-4 bg-card/50">
+              <button
+                type="button"
+                onClick={() => setIsCameraModalOpen(false)}
+                className="px-4 py-2 border border-border/80 rounded-xl text-xs hover:bg-muted text-muted-foreground cursor-pointer font-sans"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={capturePhoto}
+                disabled={!cameraStream}
+                className="h-12 w-12 rounded-full border-4 border-primary/20 bg-primary hover:bg-primary/90 flex items-center justify-center text-primary-foreground shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 cursor-pointer"
+                title="Capture Photo"
+              >
+                <div className="w-5 h-5 rounded-full border-2 border-white bg-white/20" />
+              </button>
             </div>
           </div>
         </div>
