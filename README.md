@@ -1,155 +1,163 @@
-# Something Great — End-to-End Encrypted Real-Time Chat App
+# 🌌 Something Great
 
-A modern, high-performance, and feature-rich real-time chat application built using **TanStack Start** (Vite + React Router) for the frontend and **Convex** for the real-time serverless backend. 
+> **A Secure, High-Performance, End-to-End Encrypted Real-Time Chat Application**
 
-Security is a core design principle: all text messages, image attachments, and voice notes are **fully encrypted end-to-end (E2E)** on the client using the Web Crypto API before being transmitted or stored.
-
----
-
-## Key Features
-
-- 🔒 **End-to-End Encryption (E2E):** Client-side encryption using AES-GCM for message contents and media attachments. Key exchange is performed securely using RSA-OAEP public/private key pairs.
-- 🔑 **Secure Key Backup & Restore:** Optional passphrase-derived backup stored securely on the backend (using PBKDF2 key derivation) to recover chat keys when logging in from new devices.
-- 💬 **Rich Communication Rooms:**
-  - **Global Chat:** Public room open to all users.
-  - **Custom Rooms:** Public or Private rooms (private rooms require room password/owner approval).
-  - **Direct Messages (DMs):** Private one-on-one encrypted rooms with typing and read-receipt indicators.
-- 🎤 **Voice Messages:** Record, send, and listen to voice notes directly in the chat with a customized, responsive media player.
-- 🖼️ **Image Attachments:** Select and upload images securely via **UploadThing** integration.
-- 👾 **GIPHY Integration:** Search and share GIFs instantly using the inline GIPHY picker.
-- ↩️ **Swipe-to-Reply / Mentions:** Swipe any message bubble left to reply, and tag other users using `@username` mentions.
-- 🛠️ **Message Actions (PC & Mobile):**
-  - **PC:** Right-click on any message to trigger options.
-  - **Mobile:** Long-press (500ms hold) to slide up a native-feeling actions drawer.
-  - **Delete Message:** Erases encrypted content from Convex database and purges binary files from UploadThing, leaving a context-specific placeholder (e.g. *"A sound wave was silenced"*).
-  - **Forward Message:** Decrypts the message on-the-fly and re-encrypts it with the target room's key (including file re-uploads) to securely forward text or media.
-- 👥 **Friends & Invitations:** Manage friends, send requests, accept invites, and start instant DMs.
-- 🎨 **Responsive Glassmorphism Styling:** Premium dark-mode UI with smooth micro-animations, mobile-collapsible menus, responsive modals, and dynamic keyboard safe-area adjustments.
+[![Convex](https://img.shields.io/badge/Backend-Convex-5D3FD3?style=for-the-badge&logo=convex)](https://convex.dev)
+[![React](https://img.shields.io/badge/Frontend-React%2019-61DAFB?style=for-the-badge&logo=react)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS v4](https://img.shields.io/badge/Styling-Tailwind%20CSS%20v4-38B2AC?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com)
+[![Bun](https://img.shields.io/badge/Runtime-Bun-f91880?style=for-the-badge&logo=bun)](https://bun.sh)
 
 ---
 
-## Technology Stack
-
-- **Frontend Framework:** [TanStack Start](https://tanstack.com/start) (React + React Router)
-- **Backend Service:** [Convex](https://convex.dev)
-- **Database & Real-time Sync:** Convex Documents
-- **File Storage:** [UploadThing](https://uploadthing.com)
-- **Analytics:** [PostHog](https://posthog.com)
-- **CSS Utility:** Tailwind CSS v4
-- **Package Manager / Runtime:** [Bun](https://bun.sh)
+**Something Great** is a premium, real-time messaging application designed with client-side **End-to-End Encryption (E2EE)** at its core. Built on top of **TanStack Start** (Vite + React Router) and powered by **Convex** serverless backend, it delivers instant message synchronization, voice notes, and media sharing under a sleek, glassmorphic dark-mode interface.
 
 ---
 
-## Getting Started & Local Development
+## 📸 Screenshots
+
+| 💬 Chat Interface | 🖼️ Explore Shared Photos |
+|:---:|:---:|
+| ![Chat Screen](public/screenshots/chat_page.png) | ![Explore Screen](public/screenshots/explore_page.png) |
+
+---
+
+## ✨ Key Features
+
+*   🔒 **Zero-Knowledge E2E Encryption:** All text, audio recordings, and image attachments are encrypted in-browser using **AES-GCM (256-bit)** before being sent. Keys are exchanged securely using **RSA-OAEP**.
+*   🔑 **Key Backup & Recovery:** Passphrase-derived backup keys (via **PBKDF2**) stored securely on the database allow users to restore private RSA keys when signing in from new devices.
+*   💬 **Diverse Room Types:**
+    *   **Global Chat:** Open public discussion channel.
+    *   **Custom Rooms:** Public or Private rooms (private rooms require join approvals or passwords).
+    *   **Direct Messages (DMs):** Private 1-on-1 chats with live typing indicators and read receipts.
+*   🖼️ **Global Explore Feed:** A clean, vertical scrolling feed collecting all shared images across all rooms you are a member of, decrypted on-demand with correct natural aspect ratios.
+*   🎤 **Voice Messaging:** Record, send, and play encrypted audio files through a customized, wave-styled inline audio player.
+*   👾 **GIF Integration:** Search and share animated GIFs instantly via GIPHY API.
+*   ↩️ **Swipe-to-Reply & Mentions:** Swipe any message bubble left to trigger a contextual reply, and tag users with autocomplete-assisted `@username` mentions.
+*   🛠️ **Native-Feel Gestures & Actions:**
+    *   **PC:** Right-click message bubbles to reveal actions.
+    *   **Mobile:** Long-press (500ms hold) to trigger a native-feeling bottom slide-up actions drawer.
+    *   **Purging:** Deleting messages wipes the encrypted database contents and deletes the assets from UploadThing, leaving clean contextual notes (e.g., *"Visual memory collapsed into a black hole"*).
+
+---
+
+## 🛠️ Technology Stack
+
+*   **Runtime & Package Manager:** [Bun](https://bun.sh)
+*   **Frontend Framework:** [TanStack Start](https://tanstack.com/start) (React 19 + React Router)
+*   **Backend & DB:** [Convex](https://convex.dev)
+*   **File Storage:** [UploadThing](https://uploadthing.com)
+*   **Analytics:** [PostHog](https://posthog.com)
+*   **CSS Styling:** Tailwind CSS v4
+
+---
+
+## 🚀 Getting Started & Setup
+
+Follow this step-by-step guide to clone, configure, and launch the application locally.
 
 ### 1. Prerequisites
 
-Ensure you have [Bun](https://bun.sh) installed. You will also need accounts and API credentials for the following services:
-- **Convex Account:** To host the database and backend mutations/queries.
-- **UploadThing Account:** For storing encrypted media files.
-- **PostHog Account:** (Optional) For analytics.
-- **GIPHY Developers Account:** For fetching GIFs.
+Make sure you have [Bun](https://bun.sh) installed. You will also need credentials from the following free services:
+*   [Convex Account](https://convex.dev)
+*   [UploadThing Account](https://uploadthing.com) (for file/audio storage)
+*   [GIPHY Developer API Key](https://developers.giphy.com) (for GIF picker search)
+*   [PostHog Account](https://posthog.com) (Optional - for analytics)
 
----
+### 2. Environment Variables Configuration
 
-### 2. Environment Setup
-
-Create a `.env.local` file in the root directory and add the following keys:
-
-```env
-# Convex Backend Configuration
-# (Automatically populated if you run "bun convex dev")
-CONVEX_DEPLOYMENT=your_convex_deployment_id
-VITE_CONVEX_URL=https://your_convex_project.convex.cloud
-VITE_CONVEX_SITE_URL=https://your_convex_project.convex.site
-
-# UploadThing Storage Configuration
-# Token can be found in the API Keys tab in your UploadThing Dashboard
-UPLOADTHING_TOKEN=your_uploadthing_token_here
-
-# GIPHY API Configuration
-# Get your API key from https://developers.giphy.com
-VITE_GIPHY_API_KEY=your_giphy_api_key_here
-
-# PostHog Analytics (Optional)
-VITE_POSTHOG_KEY=your_posthog_project_key
-# VITE_POSTHOG_HOST=https://us.i.posthog.com
-```
-
-In the Convex dashboard, make sure you configure your backend environment variables (specifically `UPLOADTHING_TOKEN`) so backend functions can delete media files during message deletion.
-
----
-
-### 3. Installation & Run
-
-Follow these steps to spin up the application:
-
-1. **Install dependencies:**
-   ```bash
-   bun install
-   ```
-
-2. **Start the Convex backend (Syncs schema and functions in real-time):**
-   ```bash
-   bun convex dev
-   ```
-   *(On first run, this command will prompt you to log into Convex and configure a new dev project).*
-
-3. **Start the local development server (Vite + TanStack Start):**
-   ```bash
-   bun dev
-   ```
-
-4. Open [http://localhost:3000](http://localhost:3000) in your web browser.
-
----
-
-### 4. Running Tests & Quality Checks
-
-- **Run unit tests (Vitest):**
-  ```bash
-  bun run test
-  ```
-- **Lint the codebase:**
-  ```bash
-  bun run lint
-  ```
-- **Format code using Prettier:**
-  ```bash
-  bun run format
-  ```
-
----
-
-## Production Build & Deployment
-
-### Building Locally
-
-To verify build compilation or build for self-hosting:
+Create a `.env.local` file in the root of the project:
 
 ```bash
-bun run build
+touch .env.local
 ```
 
-This compiles client-side bundles under `.output/public` and generates a standalone server application ready to run on Node/Bun.
+Populate `.env.local` with the following variables:
 
-### Deploying to Railway
+| Variable Name | Description | Source |
+| :--- | :--- | :--- |
+| `CONVEX_DEPLOYMENT` | Convex project ID | Automatically generated during step 4 |
+| `VITE_CONVEX_URL` | Cloud Convex database URL | Automatically generated during step 4 |
+| `UPLOADTHING_TOKEN` | Auth token for storage uploads | API Keys page in UploadThing Dashboard |
+| `VITE_GIPHY_API_KEY` | Key for GIPHY search | API Key from GIPHY Developer portal |
+| `VITE_POSTHOG_KEY` | Analytics key (Optional) | Project Settings page in PostHog Dashboard |
 
-This project is fully compatible with [Railway](https://railway.com) using the included `nixpacks.toml` configuration:
+> [!IMPORTANT]
+> To enable backend media purging (e.g. deleting image files when deleting messages), you must add your `UPLOADTHING_TOKEN` to your **Convex Dashboard Environment Variables** as well.
 
-1. Push this repository to your GitHub account.
-2. Go to **Railway**, create a new project, and select your GitHub repository.
-3. In the project **Variables** tab, add all environment variables defined in `.env.local`.
-4. Railway will automatically build, deploy, and serve the application.
+### 3. Installation
+
+Install project dependencies using Bun:
+
+```bash
+bun install
+```
+
+### 4. Running the App
+
+1.  **Start and configure the Convex Backend:**
+    ```bash
+    bun convex dev
+    ```
+    *If this is your first run, you will be prompted to log in and select/create a dev deployment. It will automatically compile and synchronize backend schemas, indexes, and queries, and populate your `.env.local` file.*
+
+2.  **Deploy backend functions once (alternative to running dev continuously):**
+    ```bash
+    npx convex dev --once
+    ```
+
+3.  **Start the local development server:**
+    ```bash
+    bun dev
+    ```
+
+4.  Open [http://localhost:3000](http://localhost:3000) in your web browser.
 
 ---
 
-## Cryptography Design (Client-Side E2E)
+## 🧪 Quality Assurance & Scripts
 
-This application guarantees security through client-side encryption. The backend is "blind" to message content:
+*   **Run Unit & Integration Tests (Vitest):**
+    ```bash
+    bun run test
+    ```
+*   **Lint the codebase:**
+    ```bash
+    bun run lint
+    ```
+*   **Format the code:**
+    ```bash
+    bun run format
+    ```
+*   **Compile a production build:**
+    ```bash
+    bun run build
+    ```
 
-1. **User Identity Keys:** On signup/login, the browser generates an **RSA-OAEP Public/Private Key pair**. The public key is stored in the database so other users can encrypt keys for them. The private key is saved in the browser's local IndexedDB.
-2. **Chatroom Symmetric Keys:** Every DM and private room has a unique **AES-GCM (256-bit) symmetric key**.
-3. **Key Exchange:** When joining or starting a chat, the chatroom symmetric key is encrypted using the recipient's RSA public key. Only the recipient's private key can decrypt the symmetric key.
-4. **Message Encryption:** Text body, voice notes, and image data are encrypted in the browser with the room's AES-GCM key and a random Initialization Vector (IV).
-5. **Key Backup:** If enabled, the user derives a secure wrapper key from their passphrase using PBKDF2. The wrapper key encrypts their private RSA key, which is then backed up to the database so they can regain access on other devices.
+---
+
+## 🔒 Cryptography Design Details
+
+<details>
+<summary>Click to view E2E Encryption Protocol & Key Exchange details</summary>
+
+The Convex server is completely "blind" to all conversations. Text, image files, and audio recordings are encrypted inside the client browser.
+
+1.  **User Key Pairs:** Upon registration, the browser uses the **Web Crypto API** to generate a unique **RSA-OAEP (2048-bit) Key Pair**. The public key is uploaded to Convex so other users can exchange secrets with you. The private key remains stored securely inside the browser's local IndexedDB.
+2.  **Room Symmetric Keys:** Every DM and private room is assigned a dedicated **AES-GCM (256-bit) symmetric key**.
+3.  **Key Exchange Flow:** When a conversation starts, the chatroom's AES key is encrypted using the recipient's RSA public key. Only the recipient's local private key can decrypt and use this AES key to unlock messages.
+4.  **Message Encryption:** When you type a message or upload an attachment, the client encrypts the payload using the room's AES-GCM key and a random Initialization Vector (IV).
+5.  **Passphrase Backups:** When you configure a key backup, the client uses **PBKDF2** (with 100,000 iterations and random salt) to derive a wrapping key from your custom passphrase. This wrapping key encrypts your private RSA key before uploading it to Convex, ensuring secure key recovery across devices without compromising E2E integrity.
+
+</details>
+
+---
+
+## 📦 Production Deployment
+
+This project is configured with `nixpacks.toml` and is ready for one-click deployment on **[Railway](https://railway.com)**:
+
+1.  Push this codebase to a GitHub repository.
+2.  Connect the repository to a new Railway Service.
+3.  Configure all variables from `.env.local` inside the Railway project dashboard.
+4.  Railway will build, deploy, and expose the app automatically.

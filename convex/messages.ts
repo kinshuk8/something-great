@@ -231,8 +231,16 @@ export const deleteImageReference = internalMutation({
       // Keep the text message but remove the image URL reference
       await ctx.db.patch(message._id, { imageUrl: undefined })
     } else {
-      // If there is no text body, delete the entire message
-      await ctx.db.delete(message._id)
+      // If there is no text body, replace/patch the message to show the deleted image placeholder
+      const isGiphy = !message.imageIv || message.imageUrl.includes('giphy.com')
+      const deletedFormat = isGiphy ? 'gif' : 'image'
+      await ctx.db.replace(message._id, {
+        userId: message.userId,
+        createdAt: message.createdAt,
+        chatroomId: message.chatroomId,
+        isDeleted: true,
+        deletedFormat,
+      })
     }
 
     return key
