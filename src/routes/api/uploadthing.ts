@@ -18,14 +18,38 @@ const handler = createRouteHandler({
   router: uploadRouter,
 })
 
+const addCorsHeaders = (response: Response) => {
+  const headers = new Headers(response.headers)
+  headers.set('Access-Control-Allow-Origin', '*')
+  headers.set('Access-Control-Allow-Headers', '*')
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
 export const Route = createFileRoute('/api/uploadthing')({
   server: {
     handlers: {
+      OPTIONS: async () => {
+        const headers = new Headers()
+        headers.set('Access-Control-Allow-Origin', '*')
+        headers.set('Access-Control-Allow-Headers', '*')
+        headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        return new Response(null, {
+          status: 204,
+          headers,
+        })
+      },
       GET: async ({ request }) => {
-        return await handler(request)
+        const res = await handler(request)
+        return addCorsHeaders(res)
       },
       POST: async ({ request }) => {
-        return await handler(request)
+        const res = await handler(request)
+        return addCorsHeaders(res)
       },
     },
   },

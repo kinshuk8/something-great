@@ -1845,7 +1845,6 @@ function ChatInner() {
 
   // Mobile UI state
   const [mobileShowChat, setMobileShowChat] = useState(true)
-  const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false)
 
   // GIPHY Integration States
   const [isGifPickerOpen, setIsGifPickerOpen] = useState(false)
@@ -2182,7 +2181,6 @@ function ChatInner() {
     const handleDismiss = () => {
       setMenuPosition(null)
       setActiveMenuMessage(null)
-      setIsAttachmentMenuOpen(false)
     }
     window.addEventListener('click', handleDismiss)
     window.addEventListener('scroll', handleDismiss, true)
@@ -3558,7 +3556,11 @@ function ChatInner() {
                           {/* Bubble Image */}
                           {msg.imageUrl && (
                             <div
-                              className={`relative group mt-1 max-w-xs rounded-xl overflow-hidden border border-border bg-card transition-all duration-300 ${
+                              className={`relative group mt-1 max-w-xs rounded-xl overflow-hidden transition-all duration-300 ${
+                                !msg.body
+                                  ? 'border-0 bg-transparent'
+                                  : 'border border-border bg-card'
+                              } ${
                                 isDeletingImage ? 'opacity-0 scale-95' : ''
                               }`}
                             >
@@ -3852,125 +3854,53 @@ function ChatInner() {
             )}
 
             {!isRecording && !localPreview && (
-              <>
-                {/* Desktop attachment buttons */}
-                <div className="hidden md:flex items-center gap-1.5 shrink-0">
-                  <Button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    variant="outline"
-                    className="shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0"
-                    title="Upload image"
-                  >
-                    {isUploading ? (
-                      <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Plus className="w-4 h-4" />
-                    )}
-                  </Button>
-
-                  <Button
-                    type="button"
-                    onClick={handleCameraClick}
-                    disabled={isUploading}
-                    variant="outline"
-                    className="shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0"
-                    title="Take photo with camera"
-                  >
-                    {isUploading ? (
-                      <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Camera className="w-4 h-4" />
-                    )}
-                  </Button>
-
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setIsGifPickerOpen(!isGifPickerOpen)
-                    }}
-                    variant="outline"
-                    className={`shrink-0 rounded-xl border-border/80 cursor-pointer h-9 px-2 text-xs font-bold font-sans transition-all flex items-center justify-center ${
-                      isGifPickerOpen
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card text-muted-foreground hover:text-foreground'
-                    }`}
-                    title="Find and share GIF"
-                  >
-                    GIF
-                  </Button>
-                </div>
-
-                {/* Mobile collapsible attachment menu */}
-                <div className="md:hidden relative shrink-0">
-                  <Button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setIsAttachmentMenuOpen(!isAttachmentMenuOpen)
-                    }}
-                    variant="outline"
-                    className={`shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0 ${
-                      isAttachmentMenuOpen ? 'bg-muted/80' : ''
-                    }`}
-                    title="Attachments"
-                  >
-                    <Plus
-                      className={`w-4 h-4 transition-transform duration-200 ${isAttachmentMenuOpen ? 'rotate-45 text-destructive' : ''}`}
-                    />
-                  </Button>
-
-                  {isAttachmentMenuOpen && (
-                    <div
-                      className="absolute bottom-full left-0 mb-2 bg-card border border-border rounded-xl shadow-2xl p-1.5 z-30 flex flex-col min-w-[130px] animate-in fade-in slide-in-from-bottom-2 duration-150 font-sans"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          fileInputRef.current?.click()
-                          setIsAttachmentMenuOpen(false)
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs transition-colors flex items-center gap-2 cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span className="font-medium text-foreground">
-                          Upload Photo
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleCameraClick()
-                          setIsAttachmentMenuOpen(false)
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs transition-colors flex items-center gap-2 cursor-pointer"
-                      >
-                        <Camera className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span className="font-medium text-foreground">
-                          Take Photo
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsGifPickerOpen(true)
-                          setIsAttachmentMenuOpen(false)
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted text-xs transition-colors flex items-center gap-2 cursor-pointer"
-                      >
-                        <span className="font-bold text-[9px] text-muted-foreground border border-border px-1 py-0.5 rounded shrink-0">
-                          GIF
-                        </span>
-                        <span className="font-medium text-foreground">
-                          Search GIFs
-                        </span>
-                      </button>
-                    </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  variant="outline"
+                  className="shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0"
+                  title="Upload image"
+                >
+                  {isUploading ? (
+                    <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
                   )}
-                </div>
-              </>
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={handleCameraClick}
+                  disabled={isUploading}
+                  variant="outline"
+                  className="shrink-0 rounded-xl bg-card border-border/80 text-muted-foreground hover:text-foreground cursor-pointer h-9 w-9 flex items-center justify-center p-0"
+                  title="Take photo with camera"
+                >
+                  {isUploading ? (
+                    <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4" />
+                  )}
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setIsGifPickerOpen(!isGifPickerOpen)
+                  }}
+                  variant="outline"
+                  className={`shrink-0 rounded-xl border-border/80 cursor-pointer h-9 px-2 text-xs font-bold font-sans transition-all flex items-center justify-center ${
+                    isGifPickerOpen
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-card text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Find and share GIF"
+                >
+                  GIF
+                </Button>
+              </div>
             )}
 
             {isRecording ? (
