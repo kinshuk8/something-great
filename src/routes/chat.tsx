@@ -32,6 +32,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '#/components/ui/sheet'
+import { AlertProvider, useAlert } from '#/components/ui/use-alert'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { getAvatar } from '#/lib/avatar'
@@ -61,6 +62,8 @@ import {
   User,
   Users,
   Share,
+  Images,
+  Download,
 } from 'lucide-react'
 
 export const Route = createFileRoute('/chat')({
@@ -98,7 +101,7 @@ const playPingSound = () => {
 
 function ChatLoadingSkeleton() {
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-3">
       {Array.from({ length: 5 }).map((_, i) => {
         const isRight = i % 2 === 1
         return (
@@ -317,6 +320,7 @@ interface ProfileModalProps {
 
 function ProfileModal({ isOpen, onClose, currentUser }: ProfileModalProps) {
   const updateProfile = useMutation(api.users.updateProfile)
+  const { showAlert } = useAlert()
   const [displayName, setDisplayName] = useState('')
   const [avatarSeed, setAvatarSeed] = useState('')
   const [saving, setSaving] = useState(false)
@@ -335,7 +339,7 @@ function ProfileModal({ isOpen, onClose, currentUser }: ProfileModalProps) {
         }
       },
       onUploadError: (err) => {
-        alert(`Upload error: ${err.message}`)
+        showAlert({ title: 'Upload Error', description: err.message })
       },
     })
 
@@ -360,7 +364,7 @@ function ProfileModal({ isOpen, onClose, currentUser }: ProfileModalProps) {
     if (!file) return
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('Avatar image size must be less than 5MB.')
+      showAlert({ title: 'File Too Large', description: 'Avatar image size must be less than 5MB.' })
       return
     }
 
@@ -385,9 +389,10 @@ function ProfileModal({ isOpen, onClose, currentUser }: ProfileModalProps) {
       onClose()
     } catch (err) {
       console.error(err)
-      alert(
-        err instanceof Error ? err.message : 'Failed to save profile settings',
-      )
+      showAlert({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to save profile settings',
+      })
     } finally {
       setSaving(false)
     }
@@ -524,7 +529,7 @@ function ProfileModal({ isOpen, onClose, currentUser }: ProfileModalProps) {
 }
 
 // ----------------------------------------------------------------------------
-// IMAGE VIEWER MODAL
+// IMAGE VIEWER MODAL (Premium Lightbox)
 // ----------------------------------------------------------------------------
 interface ImageModalProps {
   imageUrl: string | null
@@ -534,41 +539,329 @@ interface ImageModalProps {
 }
 
 function ImageModal({ imageUrl, imageIv, aesKey, onClose }: ImageModalProps) {
+  // Close on Escape
+  useEffect(() => {
+    if (!imageUrl) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [imageUrl, onClose])
+
   if (!imageUrl) return null
+
+  const isGif = !imageIv
+
   return (
     <>
+      {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-background/85 backdrop-blur-md z-50 animate-in fade-in duration-200"
+        className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300"
         onClick={onClose}
       />
+
+      {/* Lightbox container */}
       <div
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] max-w-[90vw] max-h-[85vh] flex flex-col items-center justify-center animate-in zoom-in-95 fade-in duration-200"
+        className="fixed inset-0 z-[60] flex items-center justify-center p-4 md:p-8"
         onClick={onClose}
       >
+        {/* Close button */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 text-white bg-black/60 hover:bg-black/80 rounded-full p-2.5 cursor-pointer shadow-lg z-10"
+          className="absolute top-4 right-4 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2.5 cursor-pointer shadow-lg z-10 backdrop-blur-sm border border-white/10 transition-all duration-200"
         >
           <X className="w-5 h-5" />
         </button>
-        {imageIv && aesKey ? (
-          <EncryptedImage
-            imageUrl={imageUrl}
-            imageIv={imageIv}
-            aesKey={aesKey}
-            alt="Expanded chat preview"
-            className="max-w-full max-h-[85vh] rounded-xl object-contain border border-border shadow-2xl select-none"
-          />
-        ) : (
-          <img
-            src={imageUrl}
-            alt="Expanded chat preview"
-            className="max-w-full max-h-[85vh] rounded-xl object-contain border border-border shadow-2xl select-none"
-          />
+
+        {/* Download button (plain / GIF images only) */}
+        {isGif && (
+          <a
+            href={imageUrl}
+            target="_blank"
+            rel="noreferrer"
+            download
+            onClick={(e) => e.stopPropagation()}
+            className="absolute top-4 right-16 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2.5 cursor-pointer shadow-lg z-10 backdrop-blur-sm border border-white/10 transition-all duration-200"
+          >
+            <Download className="w-5 h-5" />
+          </a>
         )}
+
+        {/* Image wrapper — stops click propagation so only backdrop closes */}
+        <div
+          className="relative max-w-[92vw] max-h-[88vh] animate-in zoom-in-95 fade-in duration-300"
+          onClick={(e) => e.stopPropagation()}
+          style={{ filter: 'drop-shadow(0 0 40px rgba(255,255,255,0.08))' }}
+        >
+          {/* Glow ring */}
+          <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-white/20 via-white/5 to-white/10 pointer-events-none" />
+
+          {imageIv && aesKey ? (
+            <EncryptedImage
+              imageUrl={imageUrl}
+              imageIv={imageIv}
+              aesKey={aesKey}
+              alt="Expanded chat image"
+              className="max-w-full max-h-[88vh] rounded-2xl object-contain select-none ring-1 ring-white/20 shadow-2xl"
+            />
+          ) : (
+            <img
+              src={imageUrl}
+              alt="Expanded chat image"
+              className="max-w-full max-h-[88vh] rounded-2xl object-contain select-none ring-1 ring-white/20 shadow-2xl"
+            />
+          )}
+        </div>
       </div>
     </>
+  )
+}
+
+// EXPLORE VIEW — image feed displayed in main area
+// ----------------------------------------------------------------------------
+interface ExploreImageProps {
+  msg: any
+  room: any
+  currentUser: any
+  myKeys: any
+  onImageClick: (url: string, iv?: string) => void
+}
+
+function ExploreImage({
+  msg,
+  room,
+  currentUser,
+  myKeys,
+  onImageClick,
+}: ExploreImageProps) {
+  const [aesKey, setAesKey] = useState<CryptoKey | null>(null)
+
+  // Query room key record if private
+  const myRoomKeyRecord = useQuery(
+    api.keys.getRoomKey,
+    room && room.isPrivate && msg.chatroomId ? { chatroomId: msg.chatroomId } : 'skip',
+  )
+
+  // Query target public key if DM or private
+  const targetUserPublicKeyJwk = useQuery(
+    api.keys.getUserPublicKey,
+    room && (room.isDM || room.isPrivate)
+      ? {
+          userId: room.isDM
+            ? room.memberIds.find((id: any) => id !== currentUser?._id)!
+            : room.ownerId,
+        }
+      : 'skip',
+  )
+
+  useEffect(() => {
+    let active = true
+    const deriveKey = async () => {
+      if (!room || !myKeys) {
+        setAesKey(null)
+        return
+      }
+
+      try {
+        if (room.isDM) {
+          if (!targetUserPublicKeyJwk) {
+            setAesKey(null)
+            return
+          }
+          const theirPubKey = await importPublicKey(targetUserPublicKeyJwk)
+          const sharedSecret = await deriveSharedSecret(
+            myKeys.privateKey,
+            theirPubKey,
+          )
+          if (active) {
+            setAesKey(sharedSecret)
+          }
+        } else if (room.isPrivate) {
+          if (!myRoomKeyRecord || !targetUserPublicKeyJwk) {
+            setAesKey(null)
+            return
+          }
+          const ownerPubKey = await importPublicKey(targetUserPublicKeyJwk)
+          const sharedSecretWithCreator = await deriveSharedSecret(
+            myKeys.privateKey,
+            ownerPubKey,
+          )
+          const rawKeyBase64 = await decryptText(
+            myRoomKeyRecord.encryptedKey,
+            myRoomKeyRecord.iv,
+            sharedSecretWithCreator,
+          )
+          const roomAesKey = await importRawRoomKey(
+            base64ToArrayBuffer(rawKeyBase64),
+          )
+          if (active) {
+            setAesKey(roomAesKey)
+          }
+        } else {
+          setAesKey(null)
+        }
+      } catch (err) {
+        console.error('Error deriving key for Explore image:', err)
+        if (active) {
+          setAesKey(null)
+        }
+      }
+    }
+
+    deriveKey()
+    return () => {
+      active = false
+    }
+  }, [room, myKeys, targetUserPublicKeyJwk, myRoomKeyRecord])
+
+  const isEncrypted = msg.imageIv && (room?.isDM || room?.isPrivate)
+
+  return (
+    <div
+      className="relative group rounded-xl overflow-hidden border border-border bg-card cursor-zoom-in hover:border-primary/30 transition-all duration-200 shadow-sm hover:shadow-md"
+      onClick={() => onImageClick(msg.imageUrl!, msg.imageIv)}
+    >
+      {isEncrypted ? (
+        aesKey ? (
+          <EncryptedImage
+            imageUrl={msg.imageUrl}
+            imageIv={msg.imageIv}
+            aesKey={aesKey}
+            alt="Shared image"
+            className="w-full h-auto max-h-72 object-contain"
+          />
+        ) : (
+          <div className="w-full h-48 flex items-center justify-center bg-muted/40 text-muted-foreground text-xs animate-pulse">
+            Decrypting...
+          </div>
+        )
+      ) : (
+        <img
+          src={msg.imageUrl}
+          alt="Shared image"
+          className="w-full h-auto max-h-72 object-contain"
+          loading="lazy"
+        />
+      )}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-200" />
+    </div>
+  )
+}
+
+interface ExploreViewProps {
+  exploreMessages: any[] | undefined
+  chatrooms: any[] | undefined
+  currentUser: any
+  myKeys: any
+  onImageClick: (url: string, iv?: string) => void
+  onGoBack: () => void
+}
+
+function ExploreView({
+  exploreMessages,
+  chatrooms,
+  currentUser,
+  myKeys,
+  onImageClick,
+  onGoBack,
+}: ExploreViewProps) {
+  const imageMessages = (exploreMessages ?? []).filter(
+    (m) => m.imageUrl && !m.isDeleted && m.imageDeletedReason !== 'expired',
+  )
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <header className="border-b border-border/80 px-4 py-2 md:py-2.5 flex items-center gap-3 z-20 shrink-0">
+        <button
+          type="button"
+          onClick={onGoBack}
+          className="md:hidden p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-sm font-bold flex items-center gap-1.5">
+            <Images className="w-4 h-4 text-muted-foreground shrink-0" />
+            Explore
+          </h1>
+          <p className="text-[10px] text-muted-foreground leading-none mt-0.5">
+            {imageMessages.length > 0
+              ? `${imageMessages.length} photo${imageMessages.length !== 1 ? 's' : ''} shared`
+              : 'All shared images'}
+          </p>
+        </div>
+      </header>
+
+      {/* Image feed — styled just like the message list */}
+      <div className="flex-1 overflow-y-auto px-4 py-3">
+        <div className="max-w-4xl mx-auto space-y-2">
+          {imageMessages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+              <div className="w-16 h-16 rounded-3xl bg-muted/60 border border-border/50 flex items-center justify-center">
+                <Images className="w-8 h-8 text-muted-foreground/40" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground">No photos yet</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Images shared will appear here</p>
+              </div>
+            </div>
+          ) : (
+            imageMessages.map((msg) => {
+              const room = chatrooms?.find((r: any) => r._id === msg.chatroomId)
+              return (
+                <div
+                  key={msg._id}
+                  className="flex items-start gap-2.5 animate-in fade-in slide-in-from-bottom-2"
+                >
+                  {/* Avatar */}
+                  <img
+                    src={msg.user?.image || getAvatar(msg.user?.avatarSeed || 'default')}
+                    alt="avatar"
+                    className="w-8 h-8 rounded-full mt-0.5 shrink-0 object-cover border border-border/60"
+                  />
+
+                  {/* Image bubble */}
+                  <div className="flex flex-col gap-0.5 max-w-xs md:max-w-sm">
+                    {/* Sender + room chip */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-semibold">{msg.user?.displayName || 'Unknown'}</span>
+                      {room ? (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary/80 border border-primary/15 font-mono">
+                          {room.name}
+                        </span>
+                      ) : (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted border border-border/50 text-muted-foreground font-mono">
+                          Global
+                        </span>
+                      )}
+                    </div>
+
+                    <ExploreImage
+                      msg={msg}
+                      room={room}
+                      currentUser={currentUser}
+                      myKeys={myKeys}
+                      onImageClick={onImageClick}
+                    />
+
+                    {/* Timestamp */}
+                    <span className="text-[9px] text-muted-foreground px-1">
+                      {new Date(msg.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -792,6 +1085,7 @@ function FriendsModal({
     'invites',
   )
   const [searchQuery, setSearchQuery] = useState('')
+  const { showAlert } = useAlert()
   const sendRequest = useMutation(api.friends.sendFriendRequest)
   const respondRequest = useMutation(api.friends.respondToFriendRequest)
   const cancelRequest = useMutation(api.friends.cancelFriendRequest)
@@ -821,7 +1115,7 @@ function FriendsModal({
     try {
       await sendRequest({ receiverId })
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error sending request')
+      showAlert({ title: 'Error', description: e instanceof Error ? e.message : 'Error sending request' })
     }
   }
 
@@ -832,7 +1126,7 @@ function FriendsModal({
     try {
       await respondRequest({ requestId, status })
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error responding')
+      showAlert({ title: 'Error', description: e instanceof Error ? e.message : 'Error responding' })
     }
   }
 
@@ -840,7 +1134,7 @@ function FriendsModal({
     try {
       await cancelRequest({ requestId })
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error cancelling request')
+      showAlert({ title: 'Error', description: e instanceof Error ? e.message : 'Error cancelling request' })
     }
   }
 
@@ -1398,6 +1692,7 @@ function UserDetailsModal({
   const respondRequest = useMutation(api.friends.respondToFriendRequest)
   const cancelRequest = useMutation(api.friends.cancelFriendRequest)
   const unfriend = useMutation(api.friends.unfriend)
+  const { showAlert, showConfirm } = useAlert()
 
   if (!isOpen || !user || !currentUser) return null
 
@@ -1409,7 +1704,13 @@ function UserDetailsModal({
   const handleAction = async () => {
     try {
       if (isFriend) {
-        if (confirm(`Are you sure you want to unfriend ${user.displayName}?`)) {
+        const confirmed = await showConfirm({
+          title: 'Unfriend',
+          description: `Are you sure you want to unfriend ${user.displayName}?`,
+          confirmLabel: 'Unfriend',
+          destructive: true,
+        })
+        if (confirmed) {
           await unfriend({ friendId: user._id })
         }
       } else if (pendingReceived) {
@@ -1423,7 +1724,7 @@ function UserDetailsModal({
         await sendRequest({ receiverId: user._id })
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Action failed')
+      showAlert({ title: 'Error', description: e instanceof Error ? e.message : 'Action failed' })
     }
   }
 
@@ -1489,10 +1790,11 @@ function UserDetailsModal({
 // ----------------------------------------------------------------------------
 // MAIN CHAT PAGE ROUTE COMPONENT
 // ----------------------------------------------------------------------------
-function RouteComponent() {
+function ChatInner() {
   const { isLoading, isAuthenticated } = useConvexAuth()
   const { signOut } = useAuthActions()
   const router = useRouter()
+  const { showAlert, showConfirm } = useAlert()
 
   // State for rooms, active room, replies, mentions
   const [activeRoomId, setActiveRoomId] = useState<Id<'chatrooms'> | null>(null)
@@ -1507,6 +1809,7 @@ function RouteComponent() {
   const [isFriendsOpen, setIsFriendsOpen] = useState(false)
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false)
   const [isJoinRoomOpen, setIsJoinRoomOpen] = useState(false)
+  const [isExploreOpen, setIsExploreOpen] = useState(false)
 
   // Zoom crop and details modals state
   const [selectedImageDetails, setSelectedImageDetails] = useState<{
@@ -1578,6 +1881,7 @@ function RouteComponent() {
   const messages = useQuery(api.messages.getMessages, {
     chatroomId: activeRoomId,
   })
+  const exploreMessages = useQuery(api.messages.getExploreMessages)
   const chatrooms = useQuery(api.chatrooms.getChatrooms)
   const discoverableRooms = useQuery(api.chatrooms.getDiscoverableChatrooms)
   const friends = useQuery(api.friends.getFriends)
@@ -1939,12 +2243,13 @@ function RouteComponent() {
   }
 
   const handleDeleteFullMessage = async (messageId: Id<'messages'>) => {
-    if (
-      !confirm(
-        'Are you sure you want to delete this message forever? This cannot be undone.',
-      )
-    )
-      return
+    const confirmed = await showConfirm({
+      title: 'Delete Message',
+      description: 'Are you sure you want to delete this message forever? This cannot be undone.',
+      confirmLabel: 'Delete Forever',
+      destructive: true,
+    })
+    if (!confirmed) return
     setDeletingMessageIds((prev) => {
       const next = new Set(prev)
       next.add(messageId)
@@ -1964,7 +2269,7 @@ function RouteComponent() {
         return next
       })
       console.error('Failed to delete message:', err)
-      alert('Failed to delete message')
+      showAlert({ title: 'Error', description: 'Failed to delete message' })
     }
   }
 
@@ -2042,7 +2347,7 @@ function RouteComponent() {
       })
 
       setIsBackupSetupOpen(false)
-      alert('Key backup completed successfully!')
+      showAlert({ title: '✓ Key Backup Saved', description: 'Your encryption key backup has been completed successfully.' })
     } catch (err) {
       console.error('Backup setup failed:', err)
       setBackupError('Failed to set up backup. Please try again.')
@@ -2123,12 +2428,13 @@ function RouteComponent() {
         : 'Private Room'
 
   const handleDeleteImage = async (messageId: any) => {
-    if (
-      !confirm(
-        'Are you sure you want to delete this image forever? This cannot be undone.',
-      )
-    )
-      return
+    const confirmed = await showConfirm({
+      title: 'Delete Image',
+      description: 'Are you sure you want to delete this image forever? This cannot be undone.',
+      confirmLabel: 'Delete Forever',
+      destructive: true,
+    })
+    if (!confirmed) return
 
     setDeletingMessageIds((prev) => {
       const next = new Set(prev)
@@ -2150,7 +2456,7 @@ function RouteComponent() {
         return next
       })
       console.error(err)
-      alert(err instanceof Error ? err.message : 'Failed to delete image')
+      showAlert({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to delete image' })
     }
   }
 
@@ -2161,7 +2467,7 @@ function RouteComponent() {
       }
     },
     onUploadError: (err) => {
-      alert(`Error uploading file: ${err.message}`)
+      showAlert({ title: 'Upload Error', description: `Error uploading file: ${err.message}` })
       setLocalPreview(null)
     },
     onUploadProgress: (p: number) => {
@@ -2171,20 +2477,20 @@ function RouteComponent() {
 
   const { startUpload: startVoiceUpload } = useUploadThing('voiceUploader', {
     onUploadError: (err) => {
-      alert(`Error uploading voice message: ${err.message}`)
+      showAlert({ title: 'Upload Error', description: `Error uploading voice message: ${err.message}` })
       setIsUploadingVoice(false)
     },
   })
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col">
-        <header className="border-b border-border px-6 py-4">
-          <div className="max-w-3xl mx-auto flex items-center justify-between">
+        <header className="border-b border-border px-6 py-2.5">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
             <Skeleton className="h-6 w-32 bg-accent animate-pulse" />
             <Skeleton className="h-4 w-24 bg-accent animate-pulse" />
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div className="flex-1 overflow-y-auto px-4 py-3">
           <ChatLoadingSkeleton />
         </div>
       </div>
@@ -2287,7 +2593,7 @@ function RouteComponent() {
           }
         } catch (err) {
           console.error('Failed to process voice recording:', err)
-          alert('Failed to send voice message')
+          showAlert({ title: 'Error', description: 'Failed to send voice message' })
         } finally {
           setIsUploadingVoice(false)
         }
@@ -2302,7 +2608,7 @@ function RouteComponent() {
       }, 1000)
     } catch (err) {
       console.error('Error starting voice recording:', err)
-      alert('Could not access microphone')
+      showAlert({ title: 'Microphone Access Denied', description: 'Could not access your microphone. Please grant permission in your browser settings.' })
     }
   }
 
@@ -2587,10 +2893,11 @@ function RouteComponent() {
       }
 
       setActiveRoomId(id)
+      setIsExploreOpen(false)
       setIsCreateRoomOpen(false)
       setMobileShowChat(true)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error creating room')
+      showAlert({ title: 'Error', description: e instanceof Error ? e.message : 'Error creating room' })
     }
   }
 
@@ -2598,10 +2905,11 @@ function RouteComponent() {
     try {
       await joinRoom({ chatroomId: id, password })
       setActiveRoomId(id)
+      setIsExploreOpen(false)
       setIsJoinRoomOpen(false)
       setMobileShowChat(true)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to join room')
+      showAlert({ title: 'Error', description: e instanceof Error ? e.message : 'Failed to join room' })
     }
   }
 
@@ -2609,9 +2917,10 @@ function RouteComponent() {
     try {
       const dmId = await checkOrCreateDM({ friendId })
       setActiveRoomId(dmId)
+      setIsExploreOpen(false)
       setMobileShowChat(true)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error opening DM')
+      showAlert({ title: 'Error', description: e instanceof Error ? e.message : 'Error opening DM' })
     }
   }
 
@@ -2621,7 +2930,7 @@ function RouteComponent() {
           SIDEBAR UI
           ---------------------------------------------------------------------- */}
       <aside
-        className={`w-full md:w-[280px] shrink-0 border-r border-border bg-card/45 flex flex-col h-full z-30 transition-all duration-300 ${
+        className={`w-full md:w-[280px] shrink-0 border-r border-border bg-card flex flex-col h-full z-30 transition-all duration-300 ${
           mobileShowChat
             ? 'max-md:-translate-x-full absolute md:relative'
             : 'relative'
@@ -2700,10 +3009,11 @@ function RouteComponent() {
             <button
               onClick={() => {
                 setActiveRoomId(null)
+                setIsExploreOpen(false)
                 setMobileShowChat(true)
               }}
               className={`w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs transition-colors cursor-pointer ${
-                activeRoomId === null
+                activeRoomId === null && !isExploreOpen
                   ? 'bg-primary/20 font-bold border border-primary/20'
                   : 'hover:bg-muted/40 border border-transparent'
               }`}
@@ -2712,7 +3022,22 @@ function RouteComponent() {
               <span>Global Chat</span>
             </button>
 
-            {/* Friends Invites & Requests panel */}
+            {/* Explore */}
+            <button
+              onClick={() => {
+                setIsExploreOpen(true)
+                setMobileShowChat(true)
+              }}
+              className={`w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs transition-colors cursor-pointer ${
+                isExploreOpen
+                  ? 'bg-primary/20 font-bold border border-primary/20'
+                  : 'hover:bg-muted/40 border border-transparent'
+              }`}
+            >
+              <Images className="w-4 h-4 text-muted-foreground" />
+              <span>Explore</span>
+            </button>
+
             <button
               onClick={() => setIsFriendsOpen(true)}
               className="w-full text-left px-3 py-2 rounded-xl hover:bg-muted/40 flex items-center justify-between text-xs transition-colors cursor-pointer border border-transparent relative"
@@ -2771,6 +3096,7 @@ function RouteComponent() {
                       key={room._id}
                       onClick={() => {
                         setActiveRoomId(room._id)
+                        setIsExploreOpen(false)
                         setMobileShowChat(true)
                       }}
                       className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between text-xs transition-colors cursor-pointer ${
@@ -2818,6 +3144,7 @@ function RouteComponent() {
                       key={room._id}
                       onClick={() => {
                         setActiveRoomId(room._id)
+                        setIsExploreOpen(false)
                         setMobileShowChat(true)
                       }}
                       className={`w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs transition-colors cursor-pointer ${
@@ -2883,14 +3210,25 @@ function RouteComponent() {
           ACTIVE CHAT CONTAINER
           ---------------------------------------------------------------------- */}
       <main
-        className={`flex-1 flex flex-col h-full bg-background transition-all duration-300 relative ${
+        className={`flex-1 flex flex-col h-full bg-background transition-all duration-300 ${
           !mobileShowChat
             ? 'max-md:translate-x-full absolute md:relative'
-            : 'relative w-full'
+            : 'relative w-full md:w-auto'
         }`}
       >
+        {isExploreOpen ? (
+          <ExploreView
+            exploreMessages={exploreMessages}
+            chatrooms={chatrooms}
+            currentUser={currentUser}
+            myKeys={myKeys}
+            onImageClick={(url, iv) => setSelectedImageDetails({ url, iv: iv })}
+            onGoBack={() => { setIsExploreOpen(false); setMobileShowChat(false) }}
+          />
+        ) : (
+          <>
         {/* Chat Header */}
-        <header className="border-b border-border/80 px-4 py-3 md:px-6 md:py-4 flex items-center justify-between z-20">
+        <header className="border-b border-border/80 px-4 py-2 md:px-6 md:py-2.5 flex items-center justify-between z-20">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setMobileShowChat(false)}
@@ -2924,18 +3262,20 @@ function RouteComponent() {
               </p>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-4 text-xs font-mono text-muted-foreground">
-            {activeRoomId === null
-              ? 'Public Channel'
-              : activeRoom?.isPrivate
-                ? 'Private Room'
-                : 'Public Room'}
+          <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center text-xs font-mono text-muted-foreground">
+              {activeRoomId === null
+                ? 'Public Channel'
+                : activeRoom?.isPrivate
+                  ? 'Private Room'
+                  : 'Public Room'}
+            </div>
           </div>
         </header>
 
         {/* Messages List Area */}
-        <div className="flex-1 overflow-y-auto px-4 py-6">
-          <div className="max-w-3xl mx-auto space-y-4 relative">
+        <div className="flex-1 overflow-y-auto px-4 py-3">
+          <div className="max-w-4xl mx-auto space-y-2 relative">
             {messages === undefined ? (
               <ChatLoadingSkeleton />
             ) : messages.length === 0 ? (
@@ -3178,10 +3518,10 @@ function RouteComponent() {
         </div>
 
         {/* Input Form Area */}
-        <div className="border-t border-border/80 p-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:p-4">
+        <div className="border-t border-border/80 p-2 pb-[calc(8px+env(safe-area-inset-bottom))] md:p-2.5">
           {/* File Upload Preview Panel */}
           {localPreview && (
-            <div className="max-w-3xl mx-auto mb-2 md:mb-3 flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-xl border border-border bg-card shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div className="max-w-4xl mx-auto mb-2 flex items-center gap-2 md:gap-3 p-2 rounded-xl border border-border bg-card shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200">
               <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-lg overflow-hidden border border-border shrink-0 bg-muted">
                 <img
                   src={localPreview}
@@ -3229,7 +3569,7 @@ function RouteComponent() {
 
           {/* Replying Preview Line */}
           {replyingToMessage && (
-            <div className="max-w-3xl mx-auto mb-2 flex items-center justify-between px-3 py-1.5 rounded-lg bg-muted/40 border border-border/50 text-[10px] text-muted-foreground animate-in slide-in-from-bottom-1 duration-150">
+            <div className="max-w-4xl mx-auto mb-2 flex items-center justify-between px-3 py-1.5 rounded-lg bg-muted/40 border border-border/50 text-[10px] text-muted-foreground animate-in slide-in-from-bottom-1 duration-150">
               <div className="flex items-center gap-2 truncate">
                 <CornerUpLeft className="w-3 h-3 text-primary" />
                 <span>
@@ -3254,7 +3594,7 @@ function RouteComponent() {
           {/* Core Send Form */}
           <form
             onSubmit={handleSend}
-            className="max-w-3xl mx-auto flex items-center gap-1.5 md:gap-2 relative"
+            className="max-w-4xl mx-auto flex items-center gap-1.5 md:gap-2 relative"
           >
             <input
               type="file"
@@ -3538,6 +3878,8 @@ function RouteComponent() {
             )}
           </form>
         </div>
+      </>
+      )}
       </main>
 
       {/* ----------------------------------------------------------------------
@@ -3810,5 +4152,16 @@ function RouteComponent() {
         </div>
       )}
     </div>
+  )
+}
+
+// ----------------------------------------------------------------------------
+// ROOT ROUTE COMPONENT (wraps ChatInner in AlertProvider)
+// ----------------------------------------------------------------------------
+function RouteComponent() {
+  return (
+    <AlertProvider>
+      <ChatInner />
+    </AlertProvider>
   )
 }

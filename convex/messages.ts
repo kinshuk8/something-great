@@ -106,6 +106,51 @@ export const getMessages = query({
   },
 })
 
+export const getExploreMessages = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (userId === null) return []
+
+    // Fetch user's joined chatrooms to know which private/DM rooms they can access
+    const chatrooms = await ctx.db.query('chatrooms').collect()
+    const joinedRoomIds = new Set(
+      chatrooms
+        .filter((room) => room.memberIds.includes(userId))
+        .map((room) => room._id.toString())
+    )
+
+    // Query messages by createdAt desc (bounded to avoid huge scans, e.g., 500)
+    const rawMessages = await ctx.db
+      .query('messages')
+      .withIndex('by_createdAt')
+      .order('desc')
+      .take(500)
+
+    // Filter to only include messages with imageUrl, not deleted, not expired, and accessible to user
+    const imageMessages = rawMessages.filter((msg) => {
+      if (!msg.imageUrl || msg.isDeleted || msg.imageDeletedReason === 'expired') {
+        return false
+      }
+      // Accessible if global chat (chatroomId is null or undefined) OR if user is member of chatroom
+      if (msg.chatroomId === null || msg.chatroomId === undefined) {
+        return true
+      }
+      return joinedRoomIds.has(msg.chatroomId.toString())
+    })
+
+    return Promise.all(
+      imageMessages.map(async (message) => {
+        const user = await ctx.db.get(message.userId)
+        return {
+          ...message,
+          user,
+        }
+      })
+    )
+  },
+})
+
 export const getAndCleanOldMessages = internalMutation({
   args: {},
   handler: async (ctx) => {
