@@ -127,9 +127,13 @@ export const getExploreMessages = query({
       .order('desc')
       .take(500)
 
-    // Filter to only include messages with imageUrl, an imageIv (excluding unencrypted GIFs), not deleted, not expired, and accessible to user
+    // Filter to only include messages with imageUrl, not a Giphy URL, not deleted, not expired, and accessible to user
     const imageMessages = rawMessages.filter((msg) => {
-      if (!msg.imageUrl || !msg.imageIv || msg.isDeleted || msg.imageDeletedReason === 'expired') {
+      if (!msg.imageUrl || msg.isDeleted || msg.imageDeletedReason === 'expired') {
+        return false
+      }
+      // Exclude Giphy GIFs (which have giphy.com in their URL)
+      if (msg.imageUrl.includes('giphy.com')) {
         return false
       }
       // Accessible if global chat (chatroomId is null or undefined) OR if user is member of chatroom
@@ -232,7 +236,7 @@ export const deleteImageReference = internalMutation({
       await ctx.db.patch(message._id, { imageUrl: undefined })
     } else {
       // If there is no text body, replace/patch the message to show the deleted image placeholder
-      const isGiphy = !message.imageIv || message.imageUrl.includes('giphy.com')
+      const isGiphy = message.imageUrl.includes('giphy.com')
       const deletedFormat = isGiphy ? 'gif' : 'image'
       await ctx.db.replace(message._id, {
         userId: message.userId,
@@ -292,7 +296,7 @@ export const deleteMessageAndGetFiles = internalMutation({
     if (message.audioUrl) {
       deletedFormat = 'voice'
     } else if (message.imageUrl) {
-      const isGiphy = !message.imageIv || message.imageUrl.includes('giphy.com')
+      const isGiphy = message.imageUrl.includes('giphy.com')
       deletedFormat = isGiphy ? 'gif' : 'image'
     }
 

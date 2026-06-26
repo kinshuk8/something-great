@@ -767,7 +767,11 @@ function ExploreView({
   onGoBack,
 }: ExploreViewProps) {
   const imageMessages = (exploreMessages ?? []).filter(
-    (m) => m.imageUrl && m.imageIv && !m.isDeleted && m.imageDeletedReason !== 'expired',
+    (m) =>
+      m.imageUrl &&
+      !m.isDeleted &&
+      m.imageDeletedReason !== 'expired' &&
+      !m.imageUrl.includes('giphy.com'),
   )
 
   return (
@@ -2629,9 +2633,67 @@ function ChatInner() {
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
 
+    // If multiple files are selected, upload and send them immediately
+    if (files.length > 1) {
+      const validFiles = files.filter((file) => {
+        if (file.size > 15 * 1024 * 1024) {
+          showAlert({
+            title: 'File Too Large',
+            description: `File "${file.name}" is larger than 15MB limit and will be skipped.`,
+          })
+          return false
+        }
+        return true
+      })
+
+      if (validFiles.length === 0) {
+        e.target.value = ''
+        return
+      }
+
+      try {
+        for (const file of validFiles) {
+          setLocalPreview(URL.createObjectURL(file))
+          setUploadProgress(0)
+
+          let fileToUpload = file
+          let iv: string | undefined = undefined
+          if (aesKey) {
+            const encrypted = await encryptFile(file, aesKey)
+            fileToUpload = encrypted.encryptedFile
+            iv = encrypted.iv
+          }
+
+          // startUpload returns the array of uploaded files when complete
+          const res = await startUpload([fileToUpload])
+          if (res && res[0]) {
+            const uploadedUrl = res[0].ufsUrl || res[0].url
+            await sendMessage({
+              imageUrl: uploadedUrl,
+              imageIv: iv,
+              chatroomId: activeRoomId,
+            })
+          }
+        }
+      } catch (err) {
+        console.error('Error uploading multiple files:', err)
+        showAlert({
+          title: 'Upload Error',
+          description: 'Failed to upload one or more files.',
+        })
+      } finally {
+        setUploadProgress(0)
+        setLocalPreview(null)
+        setImageUrl(null)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      }
+      return
+    }
+
+    const file = files[0]
     if (file.size > 15 * 1024 * 1024) {
       showAlert({
         title: 'File Too Large',
@@ -3736,6 +3798,7 @@ function ChatInner() {
               ref={fileInputRef}
               onChange={handleFileChange}
               accept="image/*"
+              multiple
               className="hidden"
             />
             <input
